@@ -1,0 +1,26 @@
+
+services:
+  db-service:
+    build:
+      context: .
+      dockerfile: cmd/db-service/Dockerfile
+    container_name: db-service
+    ports:
+      - "50051:50051"
+    environment:
+      - DB_FILE=/data/scheduler.db
+    volumes:
+      - db_data:/data
+
+  api-service:
+    build:
+      context: .
+      dockerfile: cmd/api-service/Dockerfile
+    container_name: api-service
+    ports:
+      - "7540:7540"
+    depends_on:
+      - db-service
+
+volumes:
+  db_data:

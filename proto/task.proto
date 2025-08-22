@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package scheduler;
+
+option go_package = "/proto";
+
+service SchedulerService {
+  rpc ListTasks (ListTasksRequest) returns (ListTasksResponse);
+  rpc GetTask (IDRequest) returns (GetTaskResponse);
+  rpc UpdateTask (UpdateTaskRequest) returns (EmptyResponse);
+  rpc DeleteTask (IDRequest) returns (EmptyResponse);
+  rpc DoneTask (IDRequest) returns (EmptyResponse);
+  rpc NextDate (NextDateRequest) returns (NextDateResponse);
+  rpc AddTask(Task) returns(AddTaskResponse);
+  rpc UpdateDate(UpdateDateRequest) returns (EmptyResponse);
+}
+
+message Task {
+  string id = 1;
+  string date = 2;    
+  string title = 3;
+  string comment = 4;
+  string repeat = 5;   
+}
+
+message ListTasksRequest {
+  int32 limit = 1;
+  string search = 2;
+}
+message ListTasksResponse {
+  repeated Task tasks = 1;
+}
+
+message GetTaskResponse {
+  Task task = 1;
+}
+
+message UpdateTaskRequest {
+  Task task = 1;
+}
+
+message IDRequest {
+  string id = 1;
+}
+
+message NextDateRequest {
+  string current_date = 1; 
+  string task_date = 2;    
+  string repeat_rule = 3;  
+}
+message NextDateResponse {
+  string next_date = 1;    
+}
+message AddTaskResponse{
+    string id = 1;
+}
+
+message UpdateDateRequest {
+  string id = 1;
+  string next_date = 2;
+}
+
+message EmptyResponse {}
+
+
+

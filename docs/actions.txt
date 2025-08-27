@@ -1,0 +1,9 @@
+Действия по добавлению Redis в db-service:
+
+
+1. Добавить redis  в docker-compose.yml
+2. добавить пакет github.com/redis/go-redis/v9
+3. создам файл redis.go
+4. туда добавлю клиента-redis 
+5. в каждом методе в task_server.go реализовать кэширование
+6. добавить инициализацию Redis в main.go

@@ -57,13 +57,11 @@ func (t *Task) Validate() (bool, map[string]string) {
 	return true, nil
 }
 
-func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (string, bool) {
+func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (string, error) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		WriteJson(w, http.StatusBadRequest, map[string]string{
-			"error": "не указан идентификатор",
-		})
-		return "", false
+
+		return "", fmt.Errorf("id parameter is required")
 	}
-	return id, true
+	return id, nil
 }

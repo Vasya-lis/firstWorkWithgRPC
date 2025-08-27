@@ -5,10 +5,10 @@ services:
       dockerfile: cmd/db-service/Dockerfile
     container_name: db-service
     ports:
-      - "${GRPC_PORT}:${GRPC_PORT}"  
+      - "${GRPC_PORT}:${GRPC_PORT}"    
     environment:
       - DB_FILE=${DB_FILE}
-      - GRPC_PORT=${GRPC_PORT}
+      - GRPC_PORT
     volumes:
       - db_data:/data
 
@@ -18,10 +18,10 @@ services:
       dockerfile: cmd/api-service/Dockerfile
     container_name: api-service
     ports:
-      - "${TODO_PORT}:${TODO_PORT}"  
+      - "${TODO_PORT}:${TODO_PORT}" 
     environment:
       - DB_SERVICE_ADDRESS=db-service:${GRPC_PORT} 
-      - TODO_PORT=${TODO_PORT}
+      - TODO_PORT
     depends_on:
       - db-service
 

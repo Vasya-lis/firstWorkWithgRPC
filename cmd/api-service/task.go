@@ -100,9 +100,9 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 // GetTaskHandler обработчик GET /api/task
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
-	id, ok := GetIDFromQuery(w, r)
-	if !ok {
-		return
+	id, err := GetIDFromQuery(w, r)
+	if err != nil {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	client := pb.NewSchedulerServiceClient(conn)
@@ -158,13 +158,13 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
-	id, ok := GetIDFromQuery(w, r)
-	if !ok {
-		return
+	id, err := GetIDFromQuery(w, r)
+	if err != nil {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	client := pb.NewSchedulerServiceClient(conn)
 
-	_, err := client.DeleteTask(ctx, &pb.IDRequest{
+	_, err = client.DeleteTask(ctx, &pb.IDRequest{
 		Id: id,
 	})
 	if err != nil {
@@ -178,9 +178,9 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
-	id, ok := GetIDFromQuery(w, r)
-	if !ok {
-		return
+	id, err := GetIDFromQuery(w, r)
+	if err != nil {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	client := pb.NewSchedulerServiceClient(conn)

@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 )
 
@@ -110,7 +111,7 @@ func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) 
 // NextDate рассчитывает следующую дату по правилу повторения
 func (s *TaskServer) NextDate(ctx context.Context, req *pb.NextDateRequest) (*pb.NextDateResponse, error) {
 	now := time.Now()
-	next, err := NextDate(now, req.TaskDate, req.RepeatRule)
+	next, err := cm.NextDate(now, req.TaskDate, req.RepeatRule)
 	if err != nil {
 		log.Println("error: ", err)
 		return nil, err

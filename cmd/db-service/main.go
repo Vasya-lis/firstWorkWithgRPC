@@ -21,8 +21,13 @@ func main() {
 		log.Fatalf("DB init failed: %v", err)
 	}
 
+	port := os.Getenv("GRPC_PORT")
+	if port == "" {
+		port = "50051"
+	}
+
 	// запуск gRPC
-	lis, err := net.Listen("tcp", ":50051")
+	lis, err := net.Listen("tcp", net.JoinHostPort("", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -30,7 +35,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 	pb.RegisterSchedulerServiceServer(grpcServer, &TaskServer{})
 
-	log.Println("db-service running on :50051")
+	log.Printf("db-service running on :%s", port)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

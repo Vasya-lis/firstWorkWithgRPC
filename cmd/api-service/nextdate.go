@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 )
 
 func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		writeJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
 	}
 
@@ -19,11 +20,11 @@ func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	repeat := r.URL.Query().Get("repeat")
 
 	if dateStr == "" || repeat == "" {
-		writeJson(w, http.StatusBadRequest, map[string]string{"error": "date and repeat parameters are required"})
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "date and repeat parameters are required"})
 		return
 	}
 
-	now := time.Now().Format(formDate)
+	now := time.Now().Format(cm.FormDate)
 	if nowStr != "" {
 		now = nowStr
 	}
@@ -36,7 +37,7 @@ func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Println(err)
-		writeJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to calculate next date"})
+		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to calculate next date"})
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

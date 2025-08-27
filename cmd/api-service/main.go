@@ -17,7 +17,7 @@ func main() {
 	var err error
 
 	// читаем адрес gRPC из env или ставим дефолт
-	grpcAddr := os.Getenv("DB_SERVICE_HOST")
+	grpcAddr := os.Getenv("DB_SERVICE_ADDRESS")
 	if grpcAddr == "" {
 		grpcAddr = "db-service:50051"
 	}

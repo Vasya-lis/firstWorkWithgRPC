@@ -32,9 +32,7 @@ func InitRedis() {
 	}
 
 	// очищаем кэш
-	if err := Rdb.FlushAll(ctx).Err(); err != nil {
-		log.Fatalf("failed to flush redis: %v", err)
-	}
+	ClearTaskCache(ctx)
 
 	log.Println("Redis is connected")
 }

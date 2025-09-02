@@ -26,7 +26,10 @@ func ClearTaskCache(ctx context.Context) {
 		log.Printf("redis scan error: %v", err)
 	}
 }
-func GetTaskCache(ctx context.Context, key string) (*Task, error) {
+func GetTaskCache(ctx context.Context, id string) (*Task, error) {
+
+	key := "task:" + id
+
 	val, err := Rdb.Get(ctx, key).Result()
 
 	if err != nil {
@@ -47,7 +50,10 @@ func GetTaskCache(ctx context.Context, key string) (*Task, error) {
 
 	return &task, nil
 }
-func SetTaskCashe(ctx context.Context, key string, task *Task) error {
+func SetTaskCashe(ctx context.Context, id string, task *Task) error {
+
+	key := "task:" + id
+
 	data, err := json.Marshal(task)
 	if err != nil {
 		log.Printf("failed to marshal task %s: %v", key, err)
@@ -134,4 +140,11 @@ func SetTasksCashe(ctx context.Context, tasks []*Task) error {
 
 	}
 	return nil
+}
+
+func DeleteTaskCache(ctx context.Context, id string) {
+	key := "task:" + id
+	if err := Rdb.Del(ctx, key).Err(); err != nil {
+		log.Printf("failed delete task %s from cache: %v", id, err)
+	}
 }

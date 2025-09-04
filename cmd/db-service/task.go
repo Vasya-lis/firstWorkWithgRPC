@@ -1,91 +1,71 @@
 package main
 
 import (
-	"database/sql"
+	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Task struct {
-	ID      string `db:"id" json:"id"`
-	Date    string `db:"date" json:"date"`
-	Title   string `db:"title" json:"title"`
-	Comment string `db:"comment" json:"comment"`
-	Repeat  string `db:"repeat" json:"repeat"`
+	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Date    string `gorm:"size:8;not null;default:''" json:"date"`
+	Title   string `gorm:"size:255;not null;default:''" json:"title"`
+	Comment string `gorm:"not null;default:''" json:"comment"`
+	Repeat  string `gorm:"size:128;not null;default:''" json:"repeat"`
 }
 
 // AddTask — добавление задачи
-func AddTask(task *Task) (int64, error) {
+func AddTask(task *Task) (int, error) {
 	if task == nil {
 		return 0, fmt.Errorf("task is nil")
 	}
 
-	// Устанавливаем текущую дату, если не указана
 	if task.Date == "" {
 		task.Date = time.Now().Format("20060102")
 	}
 
-	// Валидация обязательных полей
 	if task.Title == "" {
 		return 0, fmt.Errorf("title is required")
 	}
 
-	query := `
-		INSERT INTO scheduler (date, title, comment, repeat)
-		VALUES (?, ?, ?, ?)
-	`
-	res, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat)
-	if err != nil {
-		return 0, fmt.Errorf("failed to insert task: %w", err)
+	result := db.Create(task)
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to insert task: %w", result.Error)
 	}
-	return res.LastInsertId()
+
+	return task.ID, nil
 }
 
+// список задач с поиском и лимитом
 func Tasks(limit int, search string) ([]*Task, error) {
-	search = strings.TrimSpace(search)
-	var rows *sql.Rows
-	var err error
 
-	query := `
-		SELECT id, date, title, comment, repeat 
-		FROM scheduler 
-		%s
-		ORDER BY date ASC 
-		LIMIT ?
-	`
+	var tasks []*Task
+	query := db.Model(&Task{})
+
+	search = strings.TrimSpace(search)
 
 	switch {
 	case search == "":
-		rows, err = db.Query(fmt.Sprintf(query, ""), limit)
+		// ничего не фильтруем
 	case isDateSearch(search):
 		date, err := parseSearchDate(search)
 		if err != nil {
 			return nil, fmt.Errorf("invalid date format: %v", err)
 		}
-		rows, err = db.Query(fmt.Sprintf(query, "WHERE date = ?"), date, limit)
-		log.Println("error: ", err)
+		query = query.Where("date = ?", date)
 	default:
 		like := "%" + search + "%"
-		rows, err = db.Query(fmt.Sprintf(query, "WHERE title LIKE ? OR comment LIKE ?"), like, like, limit)
+		query = query.Where("title LIKE ? OR comment LIKE ?", like, like)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("query failed: %w", err)
-	}
-	defer rows.Close()
-
-	var tasks []*Task
-	for rows.Next() {
-		var t Task
-		if err := rows.Scan(&t.ID, &t.Date, &t.Title, &t.Comment, &t.Repeat); err != nil {
-			return nil, fmt.Errorf("scan failed: %w", err)
-		}
-		tasks = append(tasks, &t)
+	if limit > 0 {
+		query = query.Limit(limit)
 	}
 
-	if err = rows.Err(); err != nil {
+	if err := query.Order("date ASC").Find(&tasks).Error; err != nil {
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
@@ -109,61 +89,69 @@ func parseSearchDate(s string) (string, error) {
 	return t.Format("20060102"), nil
 }
 
-func GetTask(id string) (*Task, error) {
-	var t Task
-	row := db.QueryRow(`SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`, id)
-	err := row.Scan(&t.ID, &t.Date, &t.Title, &t.Comment, &t.Repeat)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("задача не найдена")
+// одна задача по id
+func GetTask(id int) (*Task, error) {
+
+	var task Task
+	result := db.First(&task, id)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("task was not found")
 		}
-		return nil, err
+		return nil, fmt.Errorf("database error: %w", result.Error)
 	}
-	return &t, nil
+	return &task, nil
 }
-
 func UpdateTask(task *Task) error {
-	query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
-	res, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
-	if err != nil {
-		return err
+	if task.ID == 0 {
+		return fmt.Errorf("task ID is required")
 	}
-	count, err := res.RowsAffected()
-	if err != nil {
-		return err
+
+	result := db.Save(task)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update task: %w", result.Error)
 	}
-	if count == 0 {
-		return fmt.Errorf("задача не найдена")
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("task was not found")
 	}
+
 	return nil
 }
 
-func DeleteTask(id string) error {
-	res, err := db.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
-	if err != nil {
-		return err
+func DeleteTask(id int) error {
+	if id <= 0 {
+		return fmt.Errorf("invalid task ID")
 	}
-	count, err := res.RowsAffected()
-	if err != nil {
-		return err
+
+	result := db.Delete(&Task{}, id)
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete task: %w", result.Error)
 	}
-	if count == 0 {
-		return fmt.Errorf("задача не найдена")
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("task was not found")
 	}
+
 	return nil
 }
 
-func UpdateDate(next string, id string) error {
-	res, err := db.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, next, id)
-	if err != nil {
-		return err
+func UpdateDate(next string, id int) error {
+	if id <= 0 {
+		return fmt.Errorf("invalid task ID")
 	}
-	count, err := res.RowsAffected()
-	if err != nil {
-		return err
+	if next == "" {
+		return fmt.Errorf("date is required")
 	}
-	if count == 0 {
-		return fmt.Errorf("задача не найдена")
+
+	result := db.Model(&Task{}).Where("id = ?", id).Update("date", next)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update date: %w", result.Error)
 	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("task was not found")
+	}
+
 	return nil
 }

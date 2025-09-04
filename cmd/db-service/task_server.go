@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -45,12 +44,13 @@ func (s *TaskServer) ListTasks(ctx context.Context, req *pb.ListTasksRequest) (*
 	var pbTasks []*pb.Task
 	for _, t := range tasks {
 		pbTasks = append(pbTasks, &pb.Task{
-			Id:      t.ID,
+			Id:      int32(t.ID),
 			Date:    t.Date,
 			Title:   t.Title,
 			Comment: t.Comment,
 			Repeat:  t.Repeat,
 		})
+
 	}
 
 	return &pb.ListTasksResponse{Tasks: pbTasks}, nil
@@ -61,23 +61,23 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 
 	// 1. проверяем кэш
 
-	task, err := GetTaskCache(ctx, req.Id)
+	task, err := GetTaskCache(ctx, int(req.Id))
 	if err != nil {
 		log.Println("failed get cache: ", err)
 		// достаем из бд
-		task, err = GetTask(req.Id)
+		task, err = GetTask(int(req.Id))
 		if err != nil {
 			return nil, err
 		}
 		// созраняем задачу в кэш
-		if err = SetTaskCashe(ctx, req.Id, task); err != nil {
+		if err = SetTaskCashe(ctx, int(req.Id), task); err != nil {
 			log.Printf("failed set task: %v", err)
 		}
 
 	}
 	return &pb.GetTaskResponse{
 		Task: &pb.Task{
-			Id:      task.ID,
+			Id:      int32(task.ID),
 			Date:    task.Date,
 			Title:   task.Title,
 			Comment: task.Comment,
@@ -88,7 +88,6 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 
 // AddTask добавляет новую задачу
 func (s *TaskServer) AddTask(ctx context.Context, req *pb.Task) (*pb.AddTaskResponse, error) {
-
 	id, err := AddTask(&Task{
 		Date:    req.Date,
 		Title:   req.Title,
@@ -98,13 +97,14 @@ func (s *TaskServer) AddTask(ctx context.Context, req *pb.Task) (*pb.AddTaskResp
 	if err != nil {
 		return nil, err
 	}
-	return &pb.AddTaskResponse{Id: fmt.Sprint(id)}, nil
+	return &pb.AddTaskResponse{Id: int32(id)}, nil
 }
 
 // UpdateTask обновляет задачу
 func (s *TaskServer) UpdateTask(ctx context.Context, req *pb.UpdateTaskRequest) (*pb.EmptyResponse, error) {
+
 	task := &Task{
-		ID:      req.Task.Id,
+		ID:      int(req.Task.Id),
 		Date:    req.Task.Date,
 		Title:   req.Task.Title,
 		Comment: req.Task.Comment,
@@ -128,38 +128,38 @@ func (s *TaskServer) UpdateTask(ctx context.Context, req *pb.UpdateTaskRequest) 
 // DeleteTask удаляет задачу по ID
 func (s *TaskServer) DeleteTask(ctx context.Context, req *pb.IDRequest) (*pb.EmptyResponse, error) {
 	// удаляем из базы
-	if err := DeleteTask(req.Id); err != nil {
+	if err := DeleteTask(int(req.Id)); err != nil {
 		log.Println("error: ", err)
 		return nil, err
 	}
 	// удаляем из кэша
-	DeleteTaskCache(ctx, req.Id)
+	DeleteTaskCache(ctx, int(req.Id))
 
 	return &pb.EmptyResponse{}, nil
 }
 
 // DoneTask отмечает задачу как выполненную и удаляет
 func (s *TaskServer) DoneTask(ctx context.Context, req *pb.IDRequest) (*pb.EmptyResponse, error) {
-	if err := DeleteTask(req.Id); err != nil {
+	if err := DeleteTask(int(req.Id)); err != nil {
 		log.Println("error: ", err)
 		return nil, err
 	}
 
 	//удаляем из кэша
-	DeleteTaskCache(ctx, req.Id)
+	DeleteTaskCache(ctx, int(req.Id))
 
 	return &pb.EmptyResponse{}, nil
 }
 
 // UpdateDate обновляет дату задачи
 func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) (*pb.EmptyResponse, error) {
-	if err := UpdateDate(req.NextDate, req.Id); err != nil {
+	if err := UpdateDate(req.NextDate, int(req.Id)); err != nil {
 		log.Println("error: ", err)
 		return nil, err
 	}
 
 	// получаем обновленную задачу из бд
-	task, err := GetTask(req.Id)
+	task, err := GetTask(int(req.Id))
 	if err != nil {
 		log.Println("failed get updated task:", err)
 		return nil, err

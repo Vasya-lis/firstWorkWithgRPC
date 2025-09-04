@@ -23,7 +23,7 @@ const (
 
 type Task struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Date          string                 `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	Comment       string                 `protobuf:"bytes,4,opt,name=comment,proto3" json:"comment,omitempty"`
@@ -62,11 +62,11 @@ func (*Task) Descriptor() ([]byte, []int) {
 	return file_task_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Task) GetId() string {
+func (x *Task) GetId() int32 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 func (x *Task) GetDate() string {
@@ -283,7 +283,7 @@ func (x *UpdateTaskRequest) GetTask() *Task {
 
 type IDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -318,11 +318,11 @@ func (*IDRequest) Descriptor() ([]byte, []int) {
 	return file_task_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *IDRequest) GetId() string {
+func (x *IDRequest) GetId() int32 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 type NextDateRequest struct {
@@ -431,7 +431,7 @@ func (x *NextDateResponse) GetNextDate() string {
 
 type AddTaskResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -466,16 +466,16 @@ func (*AddTaskResponse) Descriptor() ([]byte, []int) {
 	return file_task_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *AddTaskResponse) GetId() string {
+func (x *AddTaskResponse) GetId() int32 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 type UpdateDateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	NextDate      string                 `protobuf:"bytes,2,opt,name=next_date,json=nextDate,proto3" json:"next_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -511,11 +511,11 @@ func (*UpdateDateRequest) Descriptor() ([]byte, []int) {
 	return file_task_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *UpdateDateRequest) GetId() string {
+func (x *UpdateDateRequest) GetId() int32 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 func (x *UpdateDateRequest) GetNextDate() string {
@@ -568,7 +568,7 @@ const file_task_proto_rawDesc = "" +
 	"\n" +
 	"task.proto\x12\tscheduler\"r\n" +
 	"\x04Task\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04date\x18\x02 \x01(\tR\x04date\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x18\n" +
 	"\acomment\x18\x04 \x01(\tR\acomment\x12\x16\n" +
@@ -583,7 +583,7 @@ const file_task_proto_rawDesc = "" +
 	"\x11UpdateTaskRequest\x12#\n" +
 	"\x04task\x18\x01 \x01(\v2\x0f.scheduler.TaskR\x04task\"\x1b\n" +
 	"\tIDRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"r\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\"r\n" +
 	"\x0fNextDateRequest\x12!\n" +
 	"\fcurrent_date\x18\x01 \x01(\tR\vcurrentDate\x12\x1b\n" +
 	"\ttask_date\x18\x02 \x01(\tR\btaskDate\x12\x1f\n" +
@@ -592,9 +592,9 @@ const file_task_proto_rawDesc = "" +
 	"\x10NextDateResponse\x12\x1b\n" +
 	"\tnext_date\x18\x01 \x01(\tR\bnextDate\"!\n" +
 	"\x0fAddTaskResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"@\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\"@\n" +
 	"\x11UpdateDateRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1b\n" +
 	"\tnext_date\x18\x02 \x01(\tR\bnextDate\"\x0f\n" +
 	"\rEmptyResponse2\x9a\x04\n" +
 	"\x10SchedulerService\x12F\n" +

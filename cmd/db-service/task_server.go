@@ -88,14 +88,22 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 
 // AddTask добавляет новую задачу
 func (s *TaskServer) AddTask(ctx context.Context, req *pb.Task) (*pb.AddTaskResponse, error) {
-	id, err := AddTask(&Task{
+
+	task := &Task{
 		Date:    req.Date,
 		Title:   req.Title,
 		Comment: req.Comment,
 		Repeat:  req.Repeat,
-	})
+	}
+
+	id, err := AddTask(task)
 	if err != nil {
 		return nil, err
+	}
+	// обновляем кэш
+
+	if err := SetTaskCashe(ctx, id, task); err != nil {
+		log.Printf("failed update task in cahe: %v", err)
 	}
 	return &pb.AddTaskResponse{Id: int32(id)}, nil
 }

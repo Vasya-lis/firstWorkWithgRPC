@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
@@ -47,8 +48,15 @@ func CheckDate(task *Task) error {
 	return nil
 }
 
+func (t *Task) ValidateAdd() (bool, map[string]string) {
+	if t.Title == "" {
+		return false, map[string]string{"error": "не указан заголовок задачи"}
+	}
+	return true, nil
+}
+
 func (t *Task) Validate() (bool, map[string]string) {
-	if t.ID == "" {
+	if t.ID == 0 {
 		return false, map[string]string{"error": "не указан идентификатор задачи"}
 	}
 	if t.Title == "" {
@@ -57,11 +65,15 @@ func (t *Task) Validate() (bool, map[string]string) {
 	return true, nil
 }
 
-func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (string, error) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
+func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (int, error) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
 
-		return "", fmt.Errorf("id parameter is required")
+		return 0, fmt.Errorf("id parameter is required")
 	}
-	return id, nil
+	idInt, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка конвертации")
+	}
+	return idInt, nil
 }

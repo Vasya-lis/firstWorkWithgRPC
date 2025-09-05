@@ -9,8 +9,11 @@ services:
     environment:
       - DB_FILE=${DB_FILE}
       - GRPC_PORT
+      - REDIS_ADDR
     volumes:
       - db_data:/data
+    depends_on:
+      - redis
 
   api-service:
     build:
@@ -24,6 +27,17 @@ services:
       - TODO_PORT
     depends_on:
       - db-service
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: my-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
 
 volumes:
   db_data:
+  redis_data:

@@ -11,6 +11,9 @@ import (
 )
 
 func main() {
+
+	InitRedis()
+
 	dbFile := os.Getenv("DB_FILE")
 	if dbFile == "" {
 		dbFile = "scheduler.db"

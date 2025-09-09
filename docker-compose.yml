@@ -7,13 +7,18 @@ services:
     ports:
       - "${GRPC_PORT}:${GRPC_PORT}"    
     environment:
-      - DB_FILE=${DB_FILE}
       - GRPC_PORT
       - REDIS_ADDR
-    volumes:
-      - db_data:/data
+      - DB_HOST
+      - DB_PORT
+      - DB_USER
+      - DB_PASSWORD
+      - DB_NAME
+      - DB_SSL_MODE
     depends_on:
+      - postgres
       - redis
+
 
   api-service:
     build:
@@ -37,7 +42,19 @@ services:
     volumes:
       - redis_data:/data
     restart: always
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: my-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  db_data:
+  postgres_data:
   redis_data:

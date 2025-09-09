@@ -43,7 +43,7 @@ func AddTask(task *Task) (int, error) {
 func Tasks(limit int, search string) ([]*Task, error) {
 
 	var tasks []*Task
-	query := db.Model(&Task{})
+	query := db.Session(&gorm.Session{}).Model(&Task{})
 
 	search = strings.TrimSpace(search)
 

@@ -3,18 +3,18 @@ package main
 import (
 	"fmt"
 
-	"github.com/glebarez/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var db *gorm.DB
 
 // Init открывает базу данных и при необходимости создает таблицу и индекс
-func Init(dbFile string) error {
+func Init(dsn string) error {
 	var err error
 
-	// открываю sqlite через GORM
-	db, err = gorm.Open(sqlite.Open(dbFile), &gorm.Config{})
+	// открываю postgres через GORM
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}

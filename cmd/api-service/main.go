@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
 
+	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -13,36 +13,34 @@ import (
 var ctx = context.Background()
 var conn *grpc.ClientConn
 
+type Config struct {
+	DBserviseAddress string `envconfig:"DB_SERVICE_ADDRESS" default:"db-service:50051"`
+	TodoPort         string `envconfig:"TODO_PORT" default:"7540"`
+}
+
 func main() {
 	var err error
 
-	// читаем адрес gRPC из env или ставим дефолт
-	grpcAddr := os.Getenv("DB_SERVICE_ADDRESS")
-	if grpcAddr == "" {
-		grpcAddr = "db-service:50051"
+	var config Config
+	err = envconfig.Process("", &config)
+	if err != nil {
+		log.Fatalf("failed to process enviroment variables: %v", err)
 	}
 
 	// Подключение к gRPC серверу
-	conn, err = grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err = grpc.NewClient(config.DBserviseAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC server: %v", err)
 	}
 	defer conn.Close()
-
-	// Запуск HTTP сервера
-	// Инициализация порта из переменной окружения или настроек
-	Port := os.Getenv("TODO_PORT")
-	if Port == "" {
-		Port = "7540"
-	}
 
 	// инициализация API обработчика
 	Init()
 
 	http.Handle("/", http.FileServer(http.Dir("./web")))
 
-	log.Printf("API service running on :%s", Port)
-	err = http.ListenAndServe(":"+Port, nil)
+	log.Printf("API service running on :%s", config.TodoPort)
+	err = http.ListenAndServe(":"+config.TodoPort, nil)
 	if err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

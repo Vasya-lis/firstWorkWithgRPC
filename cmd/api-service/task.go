@@ -31,7 +31,8 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, errResp := task.ValidateAdd(); !ok {
+	errResp := task.ValidateAdd()
+	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
 		return
 	}
@@ -135,7 +136,8 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, errResp := task.Validate(); !ok {
+	errResp := task.Validate()
+	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
 		return
 	}

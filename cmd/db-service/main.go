@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 
@@ -32,12 +33,8 @@ func main() {
 		log.Fatalf("failed to process envconfig variables: %v", err)
 	}
 	// строка подключения
-	dsn := "host=" + config.DBHost +
-		"user=" + config.DBUser +
-		"password=" + config.DBPassword +
-		"dbname=" + config.DBName +
-		"port=" + config.DBPort +
-		"sslmode=" + config.DBSSLMode
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort, config.DBSSLMode)
 
 	// инициализация базы
 	if err := Init(dsn); err != nil {
@@ -45,7 +42,7 @@ func main() {
 	}
 
 	// запуск gRPC
-	lis, err := net.Listen("tcp", net.JoinHostPort(config.GRPCHost, config.GRPCPort))
+	lis, err := net.Listen("tcp", ":"+config.GRPCPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

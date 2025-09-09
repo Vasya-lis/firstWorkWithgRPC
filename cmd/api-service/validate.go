@@ -73,7 +73,7 @@ func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 	idInt, err := strconv.Atoi(idStr)
 	if err != nil {
-		return 0, fmt.Errorf("ошибка конвертации: %v", err)
+		return 0, fmt.Errorf("ошибка конвертации: %w", err)
 	}
 	return idInt, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
@@ -47,21 +48,32 @@ func CheckDate(task *Task) error {
 	return nil
 }
 
-func (t *Task) Validate() (bool, map[string]string) {
-	if t.ID == "" {
-		return false, map[string]string{"error": "не указан идентификатор задачи"}
-	}
+func (t *Task) ValidateAdd() error {
 	if t.Title == "" {
-		return false, map[string]string{"error": "не указан заголовок задачи"}
+		return fmt.Errorf("не указан заголовок задачи")
 	}
-	return true, nil
+	return nil
 }
 
-func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (string, error) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
-
-		return "", fmt.Errorf("id parameter is required")
+func (t *Task) Validate() error {
+	if t.ID == 0 {
+		return fmt.Errorf("не указан идентификатор задачи")
 	}
-	return id, nil
+	if t.Title == "" {
+		return fmt.Errorf("не указан заголовок задачи")
+	}
+	return nil
+}
+
+func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (int, error) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+
+		return 0, fmt.Errorf("id parameter is required")
+	}
+	idInt, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка конвертации: %w", err)
+	}
+	return idInt, nil
 }

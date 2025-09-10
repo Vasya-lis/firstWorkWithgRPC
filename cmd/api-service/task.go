@@ -11,7 +11,7 @@ import (
 )
 
 type Task struct {
-	ID      string `db:"id" json:"id"`
+	ID      int    `db:"id" json:"id"`
 	Date    string `db:"date" json:"date"`
 	Title   string `db:"title" json:"title"`
 	Comment string `db:"comment" json:"comment"`
@@ -31,8 +31,10 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, errResp := task.Validate(); !ok {
+	errResp := task.ValidateAdd()
+	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
+		return
 	}
 
 	if err := CheckDate(&task); err != nil {
@@ -55,7 +57,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	WriteJson(w, http.StatusOK, map[string]string{"id": resp.Id})
+	WriteJson(w, http.StatusOK, map[string]int{"id": int(resp.Id)})
 }
 
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +84,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	var tasks []*Task
 	for _, protoTask := range resp.Tasks {
 		tasks = append(tasks, &Task{
-			ID:      protoTask.Id,
+			ID:      int(protoTask.Id),
 			Date:    protoTask.Date,
 			Title:   protoTask.Title,
 			Comment: protoTask.Comment,
@@ -103,19 +105,26 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
 	}
 
 	client := pb.NewSchedulerServiceClient(conn)
 
 	task, err := client.GetTask(ctx, &pb.IDRequest{
-		Id: id,
+		Id: int32(id),
 	})
 	if err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
-	WriteJson(w, http.StatusOK, task.Task)
+	WriteJson(w, http.StatusOK, &Task{
+		ID:      int(task.Task.Id),
+		Date:    task.Task.Date,
+		Title:   task.Task.Title,
+		Comment: task.Task.Comment,
+		Repeat:  task.Task.Repeat,
+	})
 }
 
 // UpdateTaskHandler обработчик PUT /api/task
@@ -127,8 +136,10 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ok, errResp := task.Validate(); !ok {
+	errResp := task.Validate()
+	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
+		return
 	}
 
 	err = CheckDate(&task)
@@ -141,7 +152,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err = client.UpdateTask(ctx, &pb.UpdateTaskRequest{
 		Task: &pb.Task{
-			Id:      task.ID,
+			Id:      int32(task.ID),
 			Title:   task.Title,
 			Date:    task.Date,
 			Comment: task.Comment,
@@ -161,11 +172,12 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
 	}
 	client := pb.NewSchedulerServiceClient(conn)
 
 	_, err = client.DeleteTask(ctx, &pb.IDRequest{
-		Id: id,
+		Id: int32(id),
 	})
 	if err != nil {
 		log.Println("error: ", err)
@@ -181,12 +193,13 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
 	}
 
 	client := pb.NewSchedulerServiceClient(conn)
 
 	task, err := client.GetTask(ctx, &pb.IDRequest{
-		Id: id,
+		Id: int32(id),
 	})
 	if err != nil {
 		log.Println("error: ", err)
@@ -197,7 +210,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if task.Task.Repeat == "" {
 		// Одноразовая задача — удаляем
 		_, err := client.DeleteTask(ctx, &pb.IDRequest{
-			Id: id,
+			Id: int32(id),
 		})
 		if err != nil {
 			log.Println("error: ", err)
@@ -216,7 +229,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = client.UpdateDate(ctx, &pb.UpdateDateRequest{
-		Id:       id,
+		Id:       int32(id),
 		NextDate: nextDate,
 	})
 	if err != nil {

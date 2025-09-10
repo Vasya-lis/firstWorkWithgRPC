@@ -12,7 +12,7 @@ import (
 var (
 	Rdb *redis.Client
 	ctx = context.Background()
-	MU  sync.Mutex
+	MU  sync.RWMutex
 )
 
 func InitRedis() {

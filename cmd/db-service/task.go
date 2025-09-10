@@ -44,8 +44,8 @@ func AddTask(task *Task) (int, error) {
 
 // список задач с поиском и лимитом
 func Tasks(limit int, search string) ([]*Task, error) {
-	MU.Lock()
-	defer MU.Unlock()
+	MU.RLock()
+	defer MU.RUnlock()
 
 	var tasks []*Task
 	query := db.Session(&gorm.Session{}).Model(&Task{})
@@ -96,8 +96,8 @@ func parseSearchDate(s string) (string, error) {
 
 // одна задача по id
 func GetTask(id int) (*Task, error) {
-	MU.Lock()
-	defer MU.Unlock()
+	MU.RLock()
+	defer MU.RUnlock()
 
 	var task Task
 	result := db.First(&task, id)

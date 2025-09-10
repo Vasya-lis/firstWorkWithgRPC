@@ -31,8 +31,8 @@ func ClearTaskCache(ctx context.Context) {
 	}
 }
 func GetTaskCache(ctx context.Context, id int) (*Task, error) {
-	MU.Lock()
-	defer MU.Unlock()
+	MU.RLock()
+	defer MU.RUnlock()
 
 	key := "task:" + fmt.Sprint(id)
 
@@ -76,8 +76,8 @@ func SetTaskCashe(ctx context.Context, id int, task *Task) error {
 }
 
 func GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, error) {
-	MU.Lock()
-	defer MU.Unlock()
+	MU.RLock()
+	defer MU.RUnlock()
 
 	var tasks []*Task
 	iter := Rdb.Scan(ctx, 0, "task:*", 0).Iterator()

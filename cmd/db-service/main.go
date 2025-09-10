@@ -21,6 +21,8 @@ type Config struct {
 
 	GRPCPort string `envconfig:"GRPC_PORT" default:"50051"`
 	GRPCHost string `envconfig:"GRPC_HOST" default:""`
+
+	RedisAddr string `envconfig:"REDIS_ADDR" default:"my-redis:6379"`
 }
 
 func main() {

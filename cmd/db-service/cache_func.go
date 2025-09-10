@@ -16,6 +16,10 @@ var ErrNotFound = errors.New("not found")
 
 // функция чистки ключей задач
 func ClearTaskCache(ctx context.Context) {
+
+	MU.Lock()
+	defer MU.Unlock()
+
 	iter := Rdb.Scan(ctx, 0, "task:*", 0).Iterator()
 	for iter.Next(ctx) {
 		if err := Rdb.Del(ctx, iter.Val()).Err(); err != nil {
@@ -27,6 +31,8 @@ func ClearTaskCache(ctx context.Context) {
 	}
 }
 func GetTaskCache(ctx context.Context, id int) (*Task, error) {
+	MU.Lock()
+	defer MU.Unlock()
 
 	key := "task:" + fmt.Sprint(id)
 
@@ -50,7 +56,10 @@ func GetTaskCache(ctx context.Context, id int) (*Task, error) {
 
 	return &task, nil
 }
+
 func SetTaskCashe(ctx context.Context, id int, task *Task) error {
+	MU.Lock()
+	defer MU.Unlock()
 
 	key := "task:" + fmt.Sprint(id)
 
@@ -67,6 +76,8 @@ func SetTaskCashe(ctx context.Context, id int, task *Task) error {
 }
 
 func GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, error) {
+	MU.Lock()
+	defer MU.Unlock()
 
 	var tasks []*Task
 	iter := Rdb.Scan(ctx, 0, "task:*", 0).Iterator()
@@ -126,6 +137,9 @@ func GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, erro
 }
 
 func SetTasksCashe(ctx context.Context, tasks []*Task) error {
+	MU.Lock()
+	defer MU.Unlock()
+
 	for _, task := range tasks {
 		tasksData, err := json.Marshal(task)
 		if err != nil {
@@ -143,6 +157,9 @@ func SetTasksCashe(ctx context.Context, tasks []*Task) error {
 }
 
 func DeleteTaskCache(ctx context.Context, id int) {
+	MU.Lock()
+	defer MU.Unlock()
+
 	key := "task:" + fmt.Sprint(id)
 	if err := Rdb.Del(ctx, key).Err(); err != nil {
 		log.Printf("failed delete task %d from cache: %v", id, err)

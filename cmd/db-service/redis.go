@@ -3,30 +3,34 @@ package main
 import (
 	"context"
 	"log"
-	"os"
+	"sync"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/redis/go-redis/v9"
 )
 
 var (
 	Rdb *redis.Client
 	ctx = context.Background()
+	MU  sync.Mutex
 )
 
 func InitRedis() {
 
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "my-redis:6379"
+	var config Config
+	err := envconfig.Process("", &config)
+
+	if err != nil {
+		log.Fatalf("failed to process envconfig variables: %v", err)
 	}
 
 	Rdb = redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
+		Addr:     config.RedisAddr,
 		Password: "",
 		DB:       0,
 	})
 
-	_, err := Rdb.Ping(ctx).Result()
+	_, err = Rdb.Ping(ctx).Result()
 	if err != nil {
 		log.Printf("connection error to redis: %v", err)
 	}

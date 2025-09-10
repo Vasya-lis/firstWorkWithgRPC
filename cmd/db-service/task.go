@@ -19,6 +19,9 @@ type Task struct {
 
 // AddTask — добавление задачи
 func AddTask(task *Task) (int, error) {
+	MU.Lock()
+	defer MU.Unlock()
+
 	if task == nil {
 		return 0, fmt.Errorf("task is nil")
 	}
@@ -41,6 +44,8 @@ func AddTask(task *Task) (int, error) {
 
 // список задач с поиском и лимитом
 func Tasks(limit int, search string) ([]*Task, error) {
+	MU.Lock()
+	defer MU.Unlock()
 
 	var tasks []*Task
 	query := db.Session(&gorm.Session{}).Model(&Task{})
@@ -91,6 +96,8 @@ func parseSearchDate(s string) (string, error) {
 
 // одна задача по id
 func GetTask(id int) (*Task, error) {
+	MU.Lock()
+	defer MU.Unlock()
 
 	var task Task
 	result := db.First(&task, id)
@@ -103,6 +110,9 @@ func GetTask(id int) (*Task, error) {
 	return &task, nil
 }
 func UpdateTask(task *Task) error {
+	MU.Lock()
+	defer MU.Unlock()
+
 	if task.ID == 0 {
 		return fmt.Errorf("task ID is required")
 	}
@@ -120,6 +130,9 @@ func UpdateTask(task *Task) error {
 }
 
 func DeleteTask(id int) error {
+	MU.Lock()
+	defer MU.Unlock()
+
 	if id <= 0 {
 		return fmt.Errorf("invalid task ID")
 	}
@@ -137,6 +150,9 @@ func DeleteTask(id int) error {
 }
 
 func UpdateDate(next string, id int) error {
+	MU.Lock()
+	defer MU.Unlock()
+
 	if id <= 0 {
 		return fmt.Errorf("invalid task ID")
 	}

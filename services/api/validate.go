@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 )
 
 func CheckDate(task *Task) error {

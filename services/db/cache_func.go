@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"context"
@@ -57,7 +57,7 @@ func GetTaskCache(ctx context.Context, id int) (*Task, error) {
 	return &task, nil
 }
 
-func SetTaskCashe(ctx context.Context, id int, task *Task) error {
+func SetTaskCache(ctx context.Context, id int, task *Task) error {
 	MU.Lock()
 	defer MU.Unlock()
 
@@ -136,7 +136,7 @@ func GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, erro
 	return tasks, nil
 }
 
-func SetTasksCashe(ctx context.Context, tasks []*Task) error {
+func SetTasksCache(ctx context.Context, tasks []*Task) error {
 	MU.Lock()
 	defer MU.Unlock()
 

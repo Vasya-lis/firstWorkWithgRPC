@@ -8,7 +8,7 @@ import (
 )
 
 // Init открывает базу данных и при необходимости создает таблицу и индекс
-func InitDB(dsn string) error {
+func initDB(dsn string) error {
 	var err error
 
 	// открываю postgres через GORM

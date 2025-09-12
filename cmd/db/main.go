@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	db "github.com/Vasya-lis/firstWorkWithgRPC/services/db"
 )
@@ -13,5 +17,16 @@ func main() {
 		log.Fatalf("init app failed: %v", err)
 	}
 	app.Start()
-	app.Stop()
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+
+	for killSignal := range interrupt {
+		fmt.Println("Got signal:", killSignal)
+		if killSignal == os.Interrupt {
+			fmt.Println("Daemon was interrupted by system signal")
+		}
+		fmt.Println("Daemon was killed")
+		app.Stop()
+		break
+	}
 }

@@ -3,16 +3,13 @@ package db
 import (
 	"log"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	"github.com/redis/go-redis/v9"
 )
 
-func InitRedis() {
-
-	config := cm.NewConfig()
+func InitRedis(redisAddr string) {
 
 	Rdb = redis.NewClient(&redis.Options{
-		Addr:     config.RedisAddr,
+		Addr:     redisAddr,
 		Password: "",
 		DB:       0,
 	})

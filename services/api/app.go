@@ -5,22 +5,23 @@ import (
 	"log"
 	"net/http"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
-	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
+	cfg "github.com/Vasya-lis/firstWorkWithgRPC/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type AppAPI struct {
-	conf    *cm.Config       // env
+	conf    *cfg.Config      // env
 	conn    *grpc.ClientConn // для соединения с db
-	client  pb.SchedulerServiceClient
-	server  *http.Server // вебсервер
+	server  *http.Server     // вебсервер
 	context context.Context
 }
 
 func NewAppApi() (*AppAPI, error) {
-	config := cm.NewConfig()
+	config, err := cfg.NewConfig()
+	if err != nil {
+		log.Println("configuration error: %w", err)
+	}
 
 	// Подключение к gRPC серверу
 	conn, err := grpc.NewClient(config.DBServiceAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -36,11 +37,10 @@ func NewAppApi() (*AppAPI, error) {
 	app := &AppAPI{
 		conf:    config,
 		conn:    conn,
-		client:  pb.NewSchedulerServiceClient(conn),
 		server:  server,
 		context: context.Background(),
 	}
-	app.Init()
+	app.init()
 
 	return app, nil
 

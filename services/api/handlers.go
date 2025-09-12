@@ -22,11 +22,11 @@ func (app *AppAPI) taskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *AppAPI) Init() {
-	http.HandleFunc("/api/nextdate", func(w http.ResponseWriter, r *http.Request) { app.NextDateHandler(w, r) })
+func (app *AppAPI) init() {
+	http.HandleFunc("/api/nextdate", func(w http.ResponseWriter, r *http.Request) { app.nextDateHandler(w, r) })
 	http.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) { app.taskHandler(w, r) })
 	http.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) { app.tasksHandler(w, r) })
-	http.HandleFunc("/api/task/done", func(w http.ResponseWriter, r *http.Request) { app.DoneTaskHandler(w, r) })
+	http.HandleFunc("/api/task/done", func(w http.ResponseWriter, r *http.Request) { app.doneTaskHandler(w, r) })
 
 	http.Handle("/", http.FileServer(http.Dir("./web")))
 

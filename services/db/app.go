@@ -9,14 +9,14 @@ import (
 
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
+	cfg "github.com/Vasya-lis/firstWorkWithgRPC/config"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
 
 type AppDB struct {
-	conf   *cm.Config      // конфигурация evn
+	conf   *cfg.Config     // конфигурация evn
 	db     *gorm.DB        // подключение к бд
 	redis  *redis.Client   // подключение к кэшу
 	mu     sync.RWMutex    // для потокобезопасности
@@ -26,19 +26,22 @@ type AppDB struct {
 
 func NewAppDB() (*AppDB, error) {
 
-	config := cm.NewConfig()
+	config, err := cfg.NewConfig()
+	if err != nil {
+		log.Println("configuration error: %w", err)
+	}
 
 	// строка подключения
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort, config.DBSSLMode)
 
 	// инициализация базы
-	if err := InitDB(dsn); err != nil {
-		log.Fatalf("DB init failed: %v", err)
+	if err := initDB(dsn); err != nil {
+		log.Printf("DB init failed: %v", err)
 	}
 
 	// иниц redis
-	InitRedis()
+	InitRedis(dsn)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterSchedulerServiceServer(grpcServer, &TaskServer{})

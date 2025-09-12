@@ -43,7 +43,9 @@ func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := app.client.AddTask(app.context, &pb.Task{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.AddTask(app.context, &pb.Task{
 		Title:   task.Title,
 		Date:    task.Date,
 		Comment: task.Comment,
@@ -67,7 +69,9 @@ func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	limit := 50
 
-	resp, err := app.client.ListTasks(app.context, &pb.ListTasksRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.ListTasks(app.context, &pb.ListTasksRequest{
 		Limit:  int32(limit),
 		Search: search,
 	})
@@ -104,7 +108,9 @@ func (app *AppAPI) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err := app.client.GetTask(app.context, &pb.IDRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	task, err := client.GetTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -142,7 +148,9 @@ func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.client.UpdateTask(app.context, &pb.UpdateTaskRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	_, err = client.UpdateTask(app.context, &pb.UpdateTaskRequest{
 		Task: &pb.Task{
 			Id:      int32(task.ID),
 			Title:   task.Title,
@@ -167,7 +175,9 @@ func (app *AppAPI) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.client.DeleteTask(app.context, &pb.IDRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	_, err = client.DeleteTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -179,7 +189,7 @@ func (app *AppAPI) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func (app *AppAPI) DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) doneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
@@ -187,7 +197,9 @@ func (app *AppAPI) DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err := app.client.GetTask(app.context, &pb.IDRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	task, err := client.GetTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -198,7 +210,7 @@ func (app *AppAPI) DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if task.Task.Repeat == "" {
 		// Одноразовая задача — удаляем
-		_, err := app.client.DeleteTask(app.context, &pb.IDRequest{
+		_, err := client.DeleteTask(app.context, &pb.IDRequest{
 			Id: int32(id),
 		})
 		if err != nil {
@@ -217,7 +229,7 @@ func (app *AppAPI) DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.client.UpdateDate(app.context, &pb.UpdateDateRequest{
+	_, err = client.UpdateDate(app.context, &pb.UpdateDateRequest{
 		Id:       int32(id),
 		NextDate: nextDate,
 	})

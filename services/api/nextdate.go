@@ -9,7 +9,7 @@ import (
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 )
 
-func (app *AppAPI) NextDateHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) nextDateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
@@ -29,7 +29,9 @@ func (app *AppAPI) NextDateHandler(w http.ResponseWriter, r *http.Request) {
 		now = nowStr
 	}
 
-	resp, err := app.client.NextDate(app.context, &pb.NextDateRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.NextDate(app.context, &pb.NextDateRequest{
 		CurrentDate: now,
 		TaskDate:    dateStr,
 		RepeatRule:  repeat,

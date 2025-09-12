@@ -2,7 +2,7 @@ services:
   db-service:
     build:
       context: .
-      dockerfile: cmd/db-service/Dockerfile
+      dockerfile: cmd/db/Dockerfile
     container_name: db-service
     ports:
       - "${GRPC_PORT}:${GRPC_PORT}"    
@@ -23,7 +23,7 @@ services:
   api-service:
     build:
       context: .
-      dockerfile: cmd/api-service/Dockerfile
+      dockerfile: cmd/api/Dockerfile
     container_name: api-service
     ports:
       - "${TODO_PORT}:${TODO_PORT}" 
@@ -37,7 +37,7 @@ services:
   api-service2:
     build:
       context: .
-      dockerfile: cmd/api-service/Dockerfile
+      dockerfile: cmd/api/Dockerfile
     container_name: api-service2
     ports:
       - "7541:${TODO_PORT}" 
@@ -52,7 +52,7 @@ services:
   api-service3:
     build:
       context: .
-      dockerfile: cmd/api-service/Dockerfile
+      dockerfile: cmd/api/Dockerfile
     container_name: api-service3
     ports:
       - "7542:${TODO_PORT}" 

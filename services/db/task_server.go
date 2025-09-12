@@ -1,11 +1,11 @@
-package main
+package db
 
 import (
 	"context"
 	"log"
 	"time"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 )
 
@@ -28,7 +28,7 @@ func (s *TaskServer) ListTasks(ctx context.Context, req *pb.ListTasksRequest) (*
 		}
 		// 3. сохраняем список в кэш если список из бд
 
-		err = SetTasksCashe(ctx, tasks)
+		err = SetTasksCache(ctx, tasks)
 		if err != nil {
 			log.Printf("failed set tasks: %v", err)
 		}
@@ -70,7 +70,7 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 			return nil, err
 		}
 		// созраняем задачу в кэш
-		if err = SetTaskCashe(ctx, int(req.Id), task); err != nil {
+		if err = SetTaskCache(ctx, int(req.Id), task); err != nil {
 			log.Printf("failed set task: %v", err)
 		}
 
@@ -102,7 +102,7 @@ func (s *TaskServer) AddTask(ctx context.Context, req *pb.Task) (*pb.AddTaskResp
 	}
 	// обновляем кэш
 
-	if err := SetTaskCashe(ctx, id, task); err != nil {
+	if err := SetTaskCache(ctx, id, task); err != nil {
 		log.Printf("failed update task in cahe: %v", err)
 	}
 	return &pb.AddTaskResponse{Id: int32(id)}, nil
@@ -125,7 +125,7 @@ func (s *TaskServer) UpdateTask(ctx context.Context, req *pb.UpdateTaskRequest) 
 	}
 	// обновляем кэш
 
-	if err := SetTaskCashe(ctx, task.ID, task); err != nil {
+	if err := SetTaskCache(ctx, task.ID, task); err != nil {
 		log.Printf("failed update task in cahe: %v", err)
 	}
 
@@ -175,7 +175,7 @@ func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) 
 
 	// обновляем кэш
 
-	if err := SetTaskCashe(ctx, task.ID, task); err != nil {
+	if err := SetTaskCache(ctx, task.ID, task); err != nil {
 		log.Printf("failed update task in cache: %s", err)
 	}
 

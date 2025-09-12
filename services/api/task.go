@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 )
 
@@ -23,7 +23,7 @@ type TasksResp struct {
 	Tasks []*Task `json:"tasks"`
 }
 
-func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		log.Println("error: ", err)
@@ -43,9 +43,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
-
-	resp, err := client.AddTask(ctx, &pb.Task{
+	resp, err := app.client.AddTask(app.context, &pb.Task{
 		Title:   task.Title,
 		Date:    task.Date,
 		Comment: task.Comment,
@@ -60,7 +58,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]int{"id": int(resp.Id)})
 }
 
-func tasksHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
@@ -69,9 +67,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	limit := 50
 
-	client := pb.NewSchedulerServiceClient(conn)
-
-	resp, err := client.ListTasks(ctx, &pb.ListTasksRequest{
+	resp, err := app.client.ListTasks(app.context, &pb.ListTasksRequest{
 		Limit:  int32(limit),
 		Search: search,
 	})
@@ -100,7 +96,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTaskHandler обработчик GET /api/task
-func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
@@ -108,9 +104,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
-
-	task, err := client.GetTask(ctx, &pb.IDRequest{
+	task, err := app.client.GetTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -128,7 +122,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateTaskHandler обработчик PUT /api/task
-func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	err := json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
@@ -148,9 +142,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
-
-	_, err = client.UpdateTask(ctx, &pb.UpdateTaskRequest{
+	_, err = app.client.UpdateTask(app.context, &pb.UpdateTaskRequest{
 		Task: &pb.Task{
 			Id:      int32(task.ID),
 			Title:   task.Title,
@@ -168,15 +160,14 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	client := pb.NewSchedulerServiceClient(conn)
 
-	_, err = client.DeleteTask(ctx, &pb.IDRequest{
+	_, err = app.client.DeleteTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -188,7 +179,7 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
@@ -196,9 +187,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
-
-	task, err := client.GetTask(ctx, &pb.IDRequest{
+	task, err := app.client.GetTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -209,7 +198,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if task.Task.Repeat == "" {
 		// Одноразовая задача — удаляем
-		_, err := client.DeleteTask(ctx, &pb.IDRequest{
+		_, err := app.client.DeleteTask(app.context, &pb.IDRequest{
 			Id: int32(id),
 		})
 		if err != nil {
@@ -228,7 +217,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = client.UpdateDate(ctx, &pb.UpdateDateRequest{
+	_, err = app.client.UpdateDate(app.context, &pb.UpdateDateRequest{
 		Id:       int32(id),
 		NextDate: nextDate,
 	})

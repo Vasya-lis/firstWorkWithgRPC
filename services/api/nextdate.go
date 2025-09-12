@@ -1,15 +1,15 @@
-package main
+package api
 
 import (
 	"log"
 	"net/http"
 	"time"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 )
 
-func NextDateHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
@@ -28,9 +28,8 @@ func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	if nowStr != "" {
 		now = nowStr
 	}
-	client := pb.NewSchedulerServiceClient(conn)
 
-	resp, err := client.NextDate(ctx, &pb.NextDateRequest{
+	resp, err := app.client.NextDate(app.context, &pb.NextDateRequest{
 		CurrentDate: now,
 		TaskDate:    dateStr,
 		RepeatRule:  repeat,

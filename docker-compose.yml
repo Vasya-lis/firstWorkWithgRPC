@@ -34,6 +34,35 @@ services:
       - db-service
       - redis
 
+  api-service2:
+    build:
+      context: .
+      dockerfile: cmd/api-service/Dockerfile
+    container_name: api-service2
+    ports:
+      - "7541:${TODO_PORT}" 
+    environment:
+      - DB_SERVICE_ADDRESS=db-service:${GRPC_PORT} 
+      - TODO_PORT
+    depends_on:
+      - db-service
+      - redis
+
+
+  api-service3:
+    build:
+      context: .
+      dockerfile: cmd/api-service/Dockerfile
+    container_name: api-service3
+    ports:
+      - "7542:${TODO_PORT}" 
+    environment:
+      - DB_SERVICE_ADDRESS=db-service:${GRPC_PORT} 
+      - TODO_PORT
+    depends_on:
+      - db-service
+      - redis
+
   redis:
     image: redis:7-alpine
     container_name: my-redis

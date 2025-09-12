@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"fmt"
@@ -7,10 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
-
 // Init открывает базу данных и при необходимости создает таблицу и индекс
-func Init(dsn string) error {
+func InitDB(dsn string) error {
 	var err error
 
 	// открываю postgres через GORM

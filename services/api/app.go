@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -20,14 +21,15 @@ type AppAPI struct {
 func NewAppApi() (*AppAPI, error) {
 	config, err := cfg.NewConfig()
 	if err != nil {
-		log.Println("configuration error: %w", err)
+		log.Printf("configuration error: %v", err)
+		return nil, fmt.Errorf("configuration failed: %w", err)
 	}
 
 	// Подключение к gRPC серверу
 	conn, err := grpc.NewClient(config.DBServiceAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to gRPC server: %v", err)
-		return nil, err
+		log.Printf("Failed to connect to gRPC server: %v", err)
+		return nil, fmt.Errorf("failed to connect to gRPC server: %w", err)
 	}
 
 	server := &http.Server{
@@ -40,6 +42,7 @@ func NewAppApi() (*AppAPI, error) {
 		server:  server,
 		context: context.Background(),
 	}
+
 	app.init()
 
 	return app, nil
@@ -55,5 +58,8 @@ func (app *AppAPI) Start() {
 }
 
 func (app *AppAPI) Stop() {
+	if err := app.server.Shutdown(app.context); err != nil {
+		log.Printf("error when stopping the HTTP server: %v", err)
+	}
 	app.conn.Close()
 }

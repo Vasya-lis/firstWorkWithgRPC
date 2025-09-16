@@ -6,6 +6,8 @@ services:
     container_name: db-service
     ports:
       - "${GRPC_PORT}:${GRPC_PORT}"    
+    env_file:
+      - .env
     environment:
       - GRPC_PORT
       - REDIS_ADDR
@@ -15,6 +17,7 @@ services:
       - DB_PASSWORD
       - DB_NAME
       - DB_SSL_MODE
+
     depends_on:
       - postgres
       - redis
@@ -27,9 +30,12 @@ services:
     container_name: api-service
     ports:
       - "${TODO_PORT}:${TODO_PORT}" 
+    env_file:
+      - .env
     environment:
       - DB_SERVICE_ADDRESS=db-service:${GRPC_PORT} 
       - TODO_PORT
+
     depends_on:
       - db-service
       - redis
@@ -41,9 +47,12 @@ services:
     container_name: api-service2
     ports:
       - "7541:${TODO_PORT}" 
+    env_file:
+      - .env
     environment:
       - DB_SERVICE_ADDRESS=db-service:${GRPC_PORT} 
       - TODO_PORT
+
     depends_on:
       - db-service
       - redis
@@ -56,12 +65,16 @@ services:
     container_name: api-service3
     ports:
       - "7542:${TODO_PORT}" 
+    env_file:
+      - .env
     environment:
       - DB_SERVICE_ADDRESS=db-service:${GRPC_PORT} 
       - TODO_PORT
+
     depends_on:
       - db-service
       - redis
+      
 
   redis:
     image: redis:7-alpine
@@ -83,6 +96,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
 
 volumes:
   postgres_data:

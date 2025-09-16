@@ -9,18 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-type Task struct {
-	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Date    string `gorm:"size:8;not null;default:''" json:"date"`
-	Title   string `gorm:"size:255;not null;default:''" json:"title"`
-	Comment string `gorm:"not null;default:''" json:"comment"`
-	Repeat  string `gorm:"size:128;not null;default:''" json:"repeat"`
-}
-
 // AddTask — добавление задачи
-func AddTask(task *Task) (int, error) {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) AddTask(task *Task) (int, error) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	if task == nil {
 		return 0, fmt.Errorf("task is nil")
@@ -34,7 +26,7 @@ func AddTask(task *Task) (int, error) {
 		return 0, fmt.Errorf("title is required")
 	}
 
-	result := db.Create(task)
+	result := app.db.Create(task)
 	if result.Error != nil {
 		return 0, fmt.Errorf("failed to insert task: %w", result.Error)
 	}
@@ -43,12 +35,12 @@ func AddTask(task *Task) (int, error) {
 }
 
 // список задач с поиском и лимитом
-func Tasks(limit int, search string) ([]*Task, error) {
-	MU.RLock()
-	defer MU.RUnlock()
+func (app *AppDB) Tasks(limit int, search string) ([]*Task, error) {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
 
 	var tasks []*Task
-	query := db.Session(&gorm.Session{}).Model(&Task{})
+	query := app.db.Session(&gorm.Session{}).Model(&Task{})
 
 	search = strings.TrimSpace(search)
 
@@ -95,12 +87,12 @@ func parseSearchDate(s string) (string, error) {
 }
 
 // одна задача по id
-func GetTask(id int) (*Task, error) {
-	MU.RLock()
-	defer MU.RUnlock()
+func (app *AppDB) GetTask(id int) (*Task, error) {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
 
 	var task Task
-	result := db.First(&task, id)
+	result := app.db.First(&task, id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("task was not found")
@@ -109,15 +101,15 @@ func GetTask(id int) (*Task, error) {
 	}
 	return &task, nil
 }
-func UpdateTask(task *Task) error {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) UpdateTask(task *Task) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	if task.ID == 0 {
 		return fmt.Errorf("task ID is required")
 	}
 
-	result := db.Save(task)
+	result := app.db.Save(task)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update task: %w", result.Error)
 	}
@@ -129,15 +121,15 @@ func UpdateTask(task *Task) error {
 	return nil
 }
 
-func DeleteTask(id int) error {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) DeleteTask(id int) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	if id <= 0 {
 		return fmt.Errorf("invalid task ID")
 	}
 
-	result := db.Delete(&Task{}, id)
+	result := app.db.Delete(&Task{}, id)
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete task: %w", result.Error)
 	}
@@ -149,9 +141,9 @@ func DeleteTask(id int) error {
 	return nil
 }
 
-func UpdateDate(next string, id int) error {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) UpdateDate(next string, id int) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	if id <= 0 {
 		return fmt.Errorf("invalid task ID")
@@ -160,7 +152,7 @@ func UpdateDate(next string, id int) error {
 		return fmt.Errorf("date is required")
 	}
 
-	result := db.Model(&Task{}).Where("id = ?", id).Update("date", next)
+	result := app.db.Model(&Task{}).Where("id = ?", id).Update("date", next)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update date: %w", result.Error)
 	}

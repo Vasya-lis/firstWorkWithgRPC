@@ -9,6 +9,8 @@ import (
 
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 
+	cmDB "github.com/Vasya-lis/firstWorkWithgRPC/common/db"
+	cmR "github.com/Vasya-lis/firstWorkWithgRPC/common/redis"
 	cfg "github.com/Vasya-lis/firstWorkWithgRPC/config"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
@@ -28,7 +30,8 @@ func NewAppDB() (*AppDB, error) {
 
 	config, err := cfg.NewConfig()
 	if err != nil {
-		log.Println("configuration error: %w", err)
+		log.Printf("configuration error: %v", err)
+		return nil, fmt.Errorf("configuration failed: %w", err)
 	}
 
 	// строка подключения
@@ -36,24 +39,28 @@ func NewAppDB() (*AppDB, error) {
 		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort, config.DBSSLMode)
 
 	// инициализация базы
-	if err := initDB(dsn); err != nil {
+	if err := cmDB.InitDB(dsn); err != nil {
 		log.Printf("DB init failed: %v", err)
+		return nil, fmt.Errorf("DB init failed: %w", err)
 	}
 
 	// иниц redis
-	InitRedis(dsn)
+	cmR.InitRedis(config.RedisAddr)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterSchedulerServiceServer(grpcServer, &TaskServer{})
 
-	return &AppDB{
+	app := &AppDB{
 		conf:   config,
 		server: grpcServer,
 		mu:     sync.RWMutex{},
 		ctx:    context.Background(),
-		db:     GetDB(),
-		redis:  Rdb,
-	}, nil
+		db:     cmDB.GetDB(),
+		redis:  cmR.GetRedis(),
+	}
+
+	pb.RegisterSchedulerServiceServer(grpcServer, &TaskServer{app: app})
+
+	return app, nil
 }
 func (app *AppDB) Start() {
 	// запуск gRPC

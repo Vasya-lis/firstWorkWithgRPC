@@ -1,4 +1,4 @@
-package db
+package common
 
 import (
 	"fmt"
@@ -7,8 +7,18 @@ import (
 	"gorm.io/gorm"
 )
 
+var db *gorm.DB
+
+type Task struct {
+	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Date    string `gorm:"size:8;not null;default:''" json:"date"`
+	Title   string `gorm:"size:255;not null;default:''" json:"title"`
+	Comment string `gorm:"not null;default:''" json:"comment"`
+	Repeat  string `gorm:"size:128;not null;default:''" json:"repeat"`
+}
+
 // Init открывает базу данных и при необходимости создает таблицу и индекс
-func initDB(dsn string) error {
+func InitDB(dsn string) error {
 	var err error
 
 	// открываю postgres через GORM

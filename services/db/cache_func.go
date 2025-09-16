@@ -15,14 +15,14 @@ import (
 var ErrNotFound = errors.New("not found")
 
 // функция чистки ключей задач
-func ClearTaskCache(ctx context.Context) {
+func (app *AppDB) ClearTaskCache(ctx context.Context) {
 
-	MU.Lock()
-	defer MU.Unlock()
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
-	iter := Rdb.Scan(ctx, 0, "task:*", 0).Iterator()
+	iter := app.redis.Scan(ctx, 0, "task:*", 0).Iterator()
 	for iter.Next(ctx) {
-		if err := Rdb.Del(ctx, iter.Val()).Err(); err != nil {
+		if err := app.redis.Del(ctx, iter.Val()).Err(); err != nil {
 			log.Printf("failed to delete cache key %s: %v", iter.Val(), err)
 		}
 	}
@@ -30,13 +30,13 @@ func ClearTaskCache(ctx context.Context) {
 		log.Printf("redis scan error: %v", err)
 	}
 }
-func GetTaskCache(ctx context.Context, id int) (*Task, error) {
-	MU.RLock()
-	defer MU.RUnlock()
+func (app *AppDB) GetTaskCache(ctx context.Context, id int) (*Task, error) {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
 
 	key := "task:" + fmt.Sprint(id)
 
-	val, err := Rdb.Get(ctx, key).Result()
+	val, err := app.redis.Get(ctx, key).Result()
 
 	if err != nil {
 		if err == redis.Nil {
@@ -49,7 +49,7 @@ func GetTaskCache(ctx context.Context, id int) (*Task, error) {
 	var task Task
 
 	if err := json.Unmarshal([]byte(val), &task); err != nil {
-		Rdb.Del(ctx, key)
+		app.redis.Del(ctx, key)
 		log.Printf("deserialization error: %v", err)
 		return nil, err
 	}
@@ -57,9 +57,9 @@ func GetTaskCache(ctx context.Context, id int) (*Task, error) {
 	return &task, nil
 }
 
-func SetTaskCache(ctx context.Context, id int, task *Task) error {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) SetTaskCache(ctx context.Context, id int, task *Task) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	key := "task:" + fmt.Sprint(id)
 
@@ -68,26 +68,26 @@ func SetTaskCache(ctx context.Context, id int, task *Task) error {
 		log.Printf("failed to marshal task %s: %v", key, err)
 		return err
 	}
-	if err := Rdb.Set(ctx, key, data, 0).Err(); err != nil {
+	if err := app.redis.Set(ctx, key, data, 0).Err(); err != nil {
 		log.Printf("failed to set cache for task %s: %v", key, err)
 		return err
 	}
 	return nil
 }
 
-func GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, error) {
-	MU.RLock()
-	defer MU.RUnlock()
+func (app *AppDB) GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, error) {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
 
 	var tasks []*Task
-	iter := Rdb.Scan(ctx, 0, "task:*", 0).Iterator()
+	iter := app.redis.Scan(ctx, 0, "task:*", 0).Iterator()
 
 	for iter.Next(ctx) {
 		if len(tasks) >= limit && limit > 0 {
 			break
 		}
 
-		data, err := Rdb.Get(ctx, iter.Val()).Result()
+		data, err := app.redis.Get(ctx, iter.Val()).Result()
 		if err != nil {
 			log.Printf("failed get task %s: %v", iter.Val(), err)
 			continue
@@ -136,9 +136,9 @@ func GetTasksCache(ctx context.Context, limit int, search string) ([]*Task, erro
 	return tasks, nil
 }
 
-func SetTasksCache(ctx context.Context, tasks []*Task) error {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) SetTasksCache(ctx context.Context, tasks []*Task) error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	for _, task := range tasks {
 		tasksData, err := json.Marshal(task)
@@ -147,7 +147,7 @@ func SetTasksCache(ctx context.Context, tasks []*Task) error {
 			log.Printf("failed to cache task %d: %v", task.ID, err)
 			return err
 		}
-		if err := Rdb.Set(ctx, fmt.Sprintf("task:%d", task.ID), tasksData, 0).Err(); err != nil {
+		if err := app.redis.Set(ctx, fmt.Sprintf("task:%d", task.ID), tasksData, 0).Err(); err != nil {
 			log.Println(" failed set task", err)
 			return err
 		}
@@ -156,12 +156,12 @@ func SetTasksCache(ctx context.Context, tasks []*Task) error {
 	return nil
 }
 
-func DeleteTaskCache(ctx context.Context, id int) {
-	MU.Lock()
-	defer MU.Unlock()
+func (app *AppDB) DeleteTaskCache(ctx context.Context, id int) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
 	key := "task:" + fmt.Sprint(id)
-	if err := Rdb.Del(ctx, key).Err(); err != nil {
+	if err := app.redis.Del(ctx, key).Err(); err != nil {
 		log.Printf("failed delete task %d from cache: %v", id, err)
 	}
 }

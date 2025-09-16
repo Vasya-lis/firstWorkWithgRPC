@@ -11,6 +11,7 @@ import (
 
 type TaskServer struct {
 	pb.UnimplementedSchedulerServiceServer
+	app *AppDB
 }
 
 // ListTasks возвращает список задач с лимитом и поиском
@@ -18,22 +19,22 @@ func (s *TaskServer) ListTasks(ctx context.Context, req *pb.ListTasksRequest) (*
 
 	// 1. смотрим в кэш
 
-	tasks, err := GetTasksCache(ctx, int(req.Limit), req.Search)
+	tasks, err := s.app.GetTasksCache(ctx, int(req.Limit), req.Search)
 	if err != nil {
 		log.Println("failed get cache: ", err)
 		// 2. получаем из бд без фильтра
-		tasks, err = Tasks(-1, "")
+		tasks, err = s.app.Tasks(-1, "")
 		if err != nil {
 			return nil, err
 		}
 		// 3. сохраняем список в кэш если список из бд
 
-		err = SetTasksCache(ctx, tasks)
+		err = s.app.SetTasksCache(ctx, tasks)
 		if err != nil {
 			log.Printf("failed set tasks: %v", err)
 		}
 		// фильтруем
-		tasks, err = Tasks(int(req.Limit), req.Search)
+		tasks, err = s.app.Tasks(int(req.Limit), req.Search)
 		if err != nil {
 			return nil, err
 		}
@@ -61,16 +62,16 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 
 	// 1. проверяем кэш
 
-	task, err := GetTaskCache(ctx, int(req.Id))
+	task, err := s.app.GetTaskCache(ctx, int(req.Id))
 	if err != nil {
 		log.Println("failed get cache: ", err)
 		// достаем из бд
-		task, err = GetTask(int(req.Id))
+		task, err = s.app.GetTask(int(req.Id))
 		if err != nil {
 			return nil, err
 		}
 		// созраняем задачу в кэш
-		if err = SetTaskCache(ctx, int(req.Id), task); err != nil {
+		if err = s.app.SetTaskCache(ctx, int(req.Id), task); err != nil {
 			log.Printf("failed set task: %v", err)
 		}
 
@@ -96,13 +97,13 @@ func (s *TaskServer) AddTask(ctx context.Context, req *pb.Task) (*pb.AddTaskResp
 		Repeat:  req.Repeat,
 	}
 
-	id, err := AddTask(task)
+	id, err := s.app.AddTask(task)
 	if err != nil {
 		return nil, err
 	}
 	// обновляем кэш
 
-	if err := SetTaskCache(ctx, id, task); err != nil {
+	if err := s.app.SetTaskCache(ctx, id, task); err != nil {
 		log.Printf("failed update task in cahe: %v", err)
 	}
 	return &pb.AddTaskResponse{Id: int32(id)}, nil
@@ -119,13 +120,13 @@ func (s *TaskServer) UpdateTask(ctx context.Context, req *pb.UpdateTaskRequest) 
 		Repeat:  req.Task.Repeat,
 	}
 
-	err := UpdateTask(task)
+	err := s.app.UpdateTask(task)
 	if err != nil {
 		return nil, err
 	}
 	// обновляем кэш
 
-	if err := SetTaskCache(ctx, task.ID, task); err != nil {
+	if err := s.app.SetTaskCache(ctx, task.ID, task); err != nil {
 		log.Printf("failed update task in cahe: %v", err)
 	}
 
@@ -136,38 +137,38 @@ func (s *TaskServer) UpdateTask(ctx context.Context, req *pb.UpdateTaskRequest) 
 // DeleteTask удаляет задачу по ID
 func (s *TaskServer) DeleteTask(ctx context.Context, req *pb.IDRequest) (*pb.EmptyResponse, error) {
 	// удаляем из базы
-	if err := DeleteTask(int(req.Id)); err != nil {
+	if err := s.app.DeleteTask(int(req.Id)); err != nil {
 		log.Println("error: ", err)
 		return nil, err
 	}
 	// удаляем из кэша
-	DeleteTaskCache(ctx, int(req.Id))
+	s.app.DeleteTaskCache(ctx, int(req.Id))
 
 	return &pb.EmptyResponse{}, nil
 }
 
 // DoneTask отмечает задачу как выполненную и удаляет
 func (s *TaskServer) DoneTask(ctx context.Context, req *pb.IDRequest) (*pb.EmptyResponse, error) {
-	if err := DeleteTask(int(req.Id)); err != nil {
+	if err := s.app.DeleteTask(int(req.Id)); err != nil {
 		log.Println("error: ", err)
 		return nil, err
 	}
 
 	//удаляем из кэша
-	DeleteTaskCache(ctx, int(req.Id))
+	s.app.DeleteTaskCache(ctx, int(req.Id))
 
 	return &pb.EmptyResponse{}, nil
 }
 
 // UpdateDate обновляет дату задачи
 func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) (*pb.EmptyResponse, error) {
-	if err := UpdateDate(req.NextDate, int(req.Id)); err != nil {
+	if err := s.app.UpdateDate(req.NextDate, int(req.Id)); err != nil {
 		log.Println("error: ", err)
 		return nil, err
 	}
 
 	// получаем обновленную задачу из бд
-	task, err := GetTask(int(req.Id))
+	task, err := s.app.GetTask(int(req.Id))
 	if err != nil {
 		log.Println("failed get updated task:", err)
 		return nil, err
@@ -175,7 +176,7 @@ func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) 
 
 	// обновляем кэш
 
-	if err := SetTaskCache(ctx, task.ID, task); err != nil {
+	if err := s.app.SetTaskCache(ctx, task.ID, task); err != nil {
 		log.Printf("failed update task in cache: %s", err)
 	}
 

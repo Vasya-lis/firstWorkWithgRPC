@@ -1,10 +1,13 @@
-package db
+package common
 
 import (
+	"context"
 	"log"
 
 	"github.com/redis/go-redis/v9"
 )
+
+var Rdb *redis.Client
 
 func InitRedis(redisAddr string) {
 
@@ -14,13 +17,16 @@ func InitRedis(redisAddr string) {
 		DB:       0,
 	})
 
-	_, err := Rdb.Ping(ctx).Result()
+	_, err := Rdb.Ping(context.Background()).Result()
 	if err != nil {
 		log.Printf("connection error to redis: %v", err)
 	}
 
 	// очищаем кэш
-	ClearTaskCache(ctx)
+	// ??? ClearTaskCache(ctx)
 
 	log.Println("Redis is connected")
+}
+func GetRedis() *redis.Client {
+	return Rdb
 }

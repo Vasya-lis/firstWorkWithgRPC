@@ -5,29 +5,26 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"sync"
 
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
+	"github.com/Vasya-lis/firstWorkWithgRPC/services/db/cache"
+	"github.com/Vasya-lis/firstWorkWithgRPC/services/db/repo"
 
 	cmDB "github.com/Vasya-lis/firstWorkWithgRPC/common/db"
 	cmR "github.com/Vasya-lis/firstWorkWithgRPC/common/redis"
 	cfg "github.com/Vasya-lis/firstWorkWithgRPC/config"
-	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
-	"gorm.io/gorm"
 )
 
 type AppDB struct {
-	conf   *cfg.Config     // конфигурация evn
-	db     *gorm.DB        // подключение к бд
-	redis  *redis.Client   // подключение к кэшу
-	mu     sync.RWMutex    // для потокобезопасности
-	server *grpc.Server    // сервер
-	ctx    context.Context //
+	conf   *cfg.Config   // конфигурация evn
+	tasks  *TasksService // сервис тасков
+	server *grpc.Server  // grpc сервер
+	ctx    context.Context
 }
 
 func NewAppDB() (*AppDB, error) {
-
+	// читаем конфиг
 	config, err := cfg.NewConfig()
 	if err != nil {
 		log.Printf("configuration error: %v", err)
@@ -43,23 +40,31 @@ func NewAppDB() (*AppDB, error) {
 		log.Printf("DB init failed: %v", err)
 		return nil, fmt.Errorf("DB init failed: %w", err)
 	}
+	db := cmDB.GetDB()
 
 	// иниц redis
 	cmR.InitRedis(config.RedisAddr)
+	client := cmR.GetRedis()
 
+	// создание слоев приложения
+	taskRepo := repo.NewTasksRepo(db)                    // работа с бд
+	taskCache := cache.NewTasksCache(client)             // кэш
+	tasksService := NewTasksService(taskRepo, taskCache) // сервис
+
+	//создание gRPC сервера
 	grpcServer := grpc.NewServer()
+	tasksServer := NewTasksServer(tasksService)
+	pb.RegisterSchedulerServiceServer(grpcServer, tasksServer)
 
 	app := &AppDB{
 		conf:   config,
+		tasks:  tasksService,
 		server: grpcServer,
-		mu:     sync.RWMutex{},
 		ctx:    context.Background(),
-		db:     cmDB.GetDB(),
-		redis:  cmR.GetRedis(),
 	}
 
-	pb.RegisterSchedulerServiceServer(grpcServer, &TaskServer{app: app})
-
+	// чистим кэш при старте
+	app.tasks.tc.ClearTaskCache(app.ctx)
 	return app, nil
 }
 func (app *AppDB) Start() {
@@ -75,6 +80,5 @@ func (app *AppDB) Start() {
 	}
 }
 func (app *AppDB) Stop() {
-	app.redis.Close()
 	app.server.GracefulStop()
 }

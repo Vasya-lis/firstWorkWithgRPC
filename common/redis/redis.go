@@ -21,10 +21,6 @@ func InitRedis(redisAddr string) {
 	if err != nil {
 		log.Printf("connection error to redis: %v", err)
 	}
-
-	// очищаем кэш
-	// ??? ClearTaskCache(ctx)
-
 	log.Println("Redis is connected")
 }
 func GetRedis() *redis.Client {

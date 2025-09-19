@@ -1,164 +1,143 @@
 package db
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"time"
+	"log"
+	"sync"
 
-	"gorm.io/gorm"
+	apperrors "github.com/Vasya-lis/firstWorkWithgRPC/common/app_errors"
+	"github.com/Vasya-lis/firstWorkWithgRPC/services/db/cache"
+	"github.com/Vasya-lis/firstWorkWithgRPC/services/db/repo"
+	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
-// AddTask — добавление задачи
-func (app *AppDB) AddTask(task *Task) (int, error) {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-
-	if task == nil {
-		return 0, fmt.Errorf("task is nil")
-	}
-
-	if task.Date == "" {
-		task.Date = time.Now().Format("20060102")
-	}
-
-	if task.Title == "" {
-		return 0, fmt.Errorf("title is required")
-	}
-
-	result := app.db.Create(task)
-	if result.Error != nil {
-		return 0, fmt.Errorf("failed to insert task: %w", result.Error)
-	}
-
-	return task.ID, nil
+type TasksService struct {
+	tr *repo.TasksRepo
+	tc *cache.TasksCache // подключение к кэшу
+	mu sync.RWMutex
 }
 
-// список задач с поиском и лимитом
-func (app *AppDB) Tasks(limit int, search string) ([]*Task, error) {
-	app.mu.RLock()
-	defer app.mu.RUnlock()
+func NewTasksService(tr *repo.TasksRepo, tc *cache.TasksCache) *TasksService {
+	return &TasksService{
+		tr: tr,
+		tc: tc,
+		mu: sync.RWMutex{},
+	}
+}
 
-	var tasks []*Task
-	query := app.db.Session(&gorm.Session{}).Model(&Task{})
+func (s *TasksService) GetTasks(ctx context.Context, limit int, search string) ([]*md.Task, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	search = strings.TrimSpace(search)
+	// 1. пробуем из кеша
+	tasks, err := s.tc.GetTasksCache(ctx, limit, search)
+	if err != nil {
+		log.Printf("failed get cache: %v", err)
 
-	switch {
-	case search == "":
-		// ничего не фильтруем
-	case isDateSearch(search):
-		date, err := parseSearchDate(search)
+		// 2. получаем из бд без фильтра
+		tasks, err = s.tr.Tasks(-1, "") // логика репозитория
 		if err != nil {
-			return nil, fmt.Errorf("invalid date format: %v", err)
+			return nil, fmt.Errorf("failed to get tasks from db: %w", err)
 		}
-		query = query.Where("date = ?", date)
-	default:
-		like := "%" + search + "%"
-		query = query.Where("title LIKE ? OR comment LIKE ?", like, like)
-	}
+		// 3. сохраняем список в кэш если список из бд
 
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
+		err = s.tc.SetTasksCache(ctx, tasks)
+		if err != nil {
+			log.Printf("failed set tasks: %v", err)
+		}
+		// фильтруем
+		tasks, err = s.tr.Tasks(limit, search)
+		if err != nil {
+			return nil, fmt.Errorf("failed to filter tasks with limit= %d search= %s : %w", limit, search, err)
+		}
 
-	if err := query.Order("date ASC").Find(&tasks).Error; err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
 	}
-
-	if tasks == nil {
-		tasks = []*Task{}
-	}
-
 	return tasks, nil
 }
+func (s *TasksService) GetTask(ctx context.Context, id int) (*md.Task, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	// 1. проверяем кэш
 
-func isDateSearch(s string) bool {
-	_, err := time.Parse("02.01.2006", s)
-	return err == nil
-}
-
-func parseSearchDate(s string) (string, error) {
-	t, err := time.Parse("02.01.2006", s)
+	task, err := s.tc.GetTaskCache(ctx, id)
 	if err != nil {
-		return "", err
-	}
-	return t.Format("20060102"), nil
-}
-
-// одна задача по id
-func (app *AppDB) GetTask(id int) (*Task, error) {
-	app.mu.RLock()
-	defer app.mu.RUnlock()
-
-	var task Task
-	result := app.db.First(&task, id)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("task was not found")
+		log.Println("failed get cache: ", err)
+		// достаем из бд
+		task, err = s.GetTask(ctx, id)
+		if err != nil {
+			if errors.Is(err, apperrors.ErrTaskNotFound) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("failed to get task ")
 		}
-		return nil, fmt.Errorf("database error: %w", result.Error)
+		// созраняем задачу в кэш
+		if err = s.tc.SetTaskCache(ctx, id, task); err != nil {
+			log.Printf("failed set task: %v", err)
+		}
+
 	}
-	return &task, nil
+	return task, nil
 }
-func (app *AppDB) UpdateTask(task *Task) error {
-	app.mu.Lock()
-	defer app.mu.Unlock()
 
-	if task.ID == 0 {
-		return fmt.Errorf("task ID is required")
+func (s *TasksService) AddTask(ctx context.Context, task *md.Task) (int, error) {
+	id, err := s.tr.AddTask(task)
+	if err != nil {
+		return 0, err
 	}
+	// обновляем кэш
 
-	result := app.db.Save(task)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update task: %w", result.Error)
+	if err := s.tc.SetTaskCache(ctx, id, task); err != nil {
+		log.Printf("failed update task in cahe: %v", err)
 	}
+	return id, nil
+}
 
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("task was not found")
+func (s *TasksService) UpdateTask(ctx context.Context, task *md.Task) error {
+	// обновляем в бд
+	err := s.tr.UpdateTask(task)
+	if err != nil {
+		return err
 	}
+	// обновляем кэш
 
+	if err := s.tc.SetTaskCache(ctx, task.ID, task); err != nil {
+		log.Printf("failed update task in cahe: %v", err)
+	}
 	return nil
 }
 
-func (app *AppDB) DeleteTask(id int) error {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-
-	if id <= 0 {
-		return fmt.Errorf("invalid task ID")
+func (s *TasksService) DeleteTask(ctx context.Context, id int) error {
+	// удаляем из базы
+	err := s.tr.DeleteTask(id)
+	if err != nil {
+		log.Println("error: ", err)
+		return err
 	}
-
-	result := app.db.Delete(&Task{}, id)
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete task: %w", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("task was not found")
-	}
-
+	// удаляем из кэша
+	s.tc.DeleteTaskCache(ctx, id)
 	return nil
 }
 
-func (app *AppDB) UpdateDate(next string, id int) error {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-
-	if id <= 0 {
-		return fmt.Errorf("invalid task ID")
-	}
-	if next == "" {
-		return fmt.Errorf("date is required")
+func (s *TasksService) UpdateDateTask(ctx context.Context, next string, id int) error {
+	err := s.tr.UpdateDate(next, id)
+	if err != nil {
+		log.Println("error: ", err)
+		return err
 	}
 
-	result := app.db.Model(&Task{}).Where("id = ?", id).Update("date", next)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update date: %w", result.Error)
+	// получаем обновленную задачу из бд
+	task, err := s.tr.GetTask(id)
+	if err != nil {
+		log.Println("failed get updated task:", err)
+		return err
 	}
 
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("task was not found")
+	// обновляем кэш
+
+	if err := s.tc.SetTaskCache(ctx, task.ID, task); err != nil {
+		log.Printf("failed update task in cache: %s", err)
 	}
 
 	return nil

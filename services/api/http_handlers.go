@@ -8,6 +8,7 @@ import (
 
 	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
+	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
 // Обработчик для /api/task
@@ -38,15 +39,16 @@ func (app *AppAPI) init() {
 
 }
 
+// в каком случае делать экспортируемую в каком приветтную?
 func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task Task
+	var task md.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 
-	errResp := task.ValidateAdd()
+	errResp := validateAdd(&task)
 	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
 		return
@@ -96,9 +98,9 @@ func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tasks []*Task
+	var tasks []*md.Task
 	for _, protoTask := range resp.Tasks {
-		tasks = append(tasks, &Task{
+		tasks = append(tasks, &md.Task{
 			ID:      int(protoTask.Id),
 			Date:    protoTask.Date,
 			Title:   protoTask.Title,
@@ -108,10 +110,10 @@ func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if tasks == nil {
-		tasks = []*Task{}
+		tasks = []*md.Task{}
 	}
 
-	WriteJson(w, http.StatusOK, TasksResp{Tasks: tasks})
+	WriteJson(w, http.StatusOK, md.TasksResponse{Tasks: tasks})
 }
 
 // GetTaskHandler обработчик GET /api/task
@@ -133,7 +135,7 @@ func (app *AppAPI) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		WriteJson(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
-	WriteJson(w, http.StatusOK, &Task{
+	WriteJson(w, http.StatusOK, &md.Task{
 		ID:      int(task.Task.Id),
 		Date:    task.Task.Date,
 		Title:   task.Task.Title,
@@ -144,14 +146,14 @@ func (app *AppAPI) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTaskHandler обработчик PUT /api/task
 func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task Task
+	var task md.Task
 	err := json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "ошибка десериализации JSON"})
 		return
 	}
 
-	errResp := task.Validate()
+	errResp := validate(&task)
 	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
 		return
@@ -255,4 +257,40 @@ func (app *AppAPI) doneTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
+}
+
+func (app *AppAPI) nextDateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		return
+	}
+
+	nowStr := r.URL.Query().Get("now")
+	dateStr := r.URL.Query().Get("date")
+	repeat := r.URL.Query().Get("repeat")
+
+	if dateStr == "" || repeat == "" {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "date and repeat parameters are required"})
+		return
+	}
+
+	now := time.Now().Format(cm.FormDate)
+	if nowStr != "" {
+		now = nowStr
+	}
+
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.NextDate(app.context, &pb.NextDateRequest{
+		CurrentDate: now,
+		TaskDate:    dateStr,
+		RepeatRule:  repeat,
+	})
+	if err != nil {
+		log.Println(err)
+		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to calculate next date"})
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(resp.NextDate))
 }

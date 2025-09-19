@@ -81,4 +81,21 @@ func (app *AppDB) Start() {
 }
 func (app *AppDB) Stop() {
 	app.server.GracefulStop()
+	client := cmR.GetRedis()
+	if client != nil {
+		err := client.Close()
+		if err != nil {
+			log.Printf("failed to close redis: %v", err)
+		}
+	}
+	db := cmDB.GetDB()
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Printf("failed to get sql.db from gorm: %v", err)
+	} else {
+		if err := sqlDB.Close(); err != nil {
+			log.Printf("failed to close db: %v", err)
+		}
+	}
+
 }

@@ -11,6 +11,10 @@ import (
 	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
+type TasksResponse struct {
+	Tasks []*md.Task `json:"tasks"`
+}
+
 // Обработчик для /api/task
 func (app *AppAPI) taskHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -113,7 +117,7 @@ func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
 		tasks = []*md.Task{}
 	}
 
-	WriteJson(w, http.StatusOK, md.TasksResponse{Tasks: tasks})
+	WriteJson(w, http.StatusOK, TasksResponse{Tasks: tasks})
 }
 
 // GetTaskHandler обработчик GET /api/task

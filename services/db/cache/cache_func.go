@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	apperrors "github.com/Vasya-lis/firstWorkWithgRPC/common/app_errors"
@@ -17,21 +16,16 @@ import (
 
 type TasksCache struct {
 	redis *redis.Client
-	mu    sync.RWMutex
 }
 
 func NewTasksCache(redis *redis.Client) *TasksCache {
 	return &TasksCache{
 		redis: redis,
-		mu:    sync.RWMutex{},
 	}
 }
 
 // функция чистки ключей задач
 func (s *TasksCache) ClearTaskCache(ctx context.Context) {
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	iter := s.redis.Scan(ctx, 0, "task:*", 0).Iterator()
 	for iter.Next(ctx) {
@@ -44,8 +38,6 @@ func (s *TasksCache) ClearTaskCache(ctx context.Context) {
 	}
 }
 func (s *TasksCache) GetTaskCache(ctx context.Context, id int) (*models.Task, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	key := "task:" + fmt.Sprint(id)
 
@@ -70,8 +62,6 @@ func (s *TasksCache) GetTaskCache(ctx context.Context, id int) (*models.Task, er
 }
 
 func (s *TasksCache) SetTaskCache(ctx context.Context, id int, task *models.Task) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	key := "task:" + fmt.Sprint(id)
 
@@ -86,8 +76,6 @@ func (s *TasksCache) SetTaskCache(ctx context.Context, id int, task *models.Task
 }
 
 func (s *TasksCache) GetTasksCache(ctx context.Context, limit int, search string) ([]*models.Task, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	var tasks []*models.Task
 	iter := s.redis.Scan(ctx, 0, "task:*", 0).Iterator()
@@ -151,8 +139,6 @@ func isDateSearch(s string) bool {
 }
 
 func (s *TasksCache) SetTasksCache(ctx context.Context, tasks []*models.Task) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	for _, task := range tasks {
 		tasksData, err := json.Marshal(task)
@@ -168,8 +154,6 @@ func (s *TasksCache) SetTasksCache(ctx context.Context, tasks []*models.Task) er
 }
 
 func (s *TasksCache) DeleteTaskCache(ctx context.Context, id int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	key := "task:" + fmt.Sprint(id)
 	if err := s.redis.Del(ctx, key).Err(); err != nil {

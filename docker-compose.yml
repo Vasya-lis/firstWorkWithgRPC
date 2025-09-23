@@ -21,6 +21,7 @@ services:
     depends_on:
       - postgres
       - redis
+    restart: always
 
 
   api-service:

@@ -63,9 +63,9 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrTaskNotFound):
-			return nil, status.Error(codes.NotFound, "task not found")
+			return nil, status.Errorf(codes.NotFound, "task id=%d not found", req.Id)
 		case errors.Is(err, apperrors.ErrInvalidTaskID):
-			return nil, status.Error(codes.InvalidArgument, "invalid task id")
+			return nil, status.Errorf(codes.InvalidArgument, "invalid task id=%d", req.Id)
 		default:
 			log.Printf("GetTask error: %v", err)
 			return nil, status.Error(codes.Internal, "internal server error")
@@ -141,12 +141,12 @@ func (s *TaskServer) DeleteTask(ctx context.Context, req *pb.IDRequest) (*pb.Emp
 	if err := s.ts.DeleteTask(ctx, int(req.Id)); err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidTaskID):
-			return nil, status.Error(codes.InvalidArgument, "invalid task id")
+			return nil, status.Errorf(codes.InvalidArgument, "invalid task id=%d", req.Id)
 		case errors.Is(err, apperrors.ErrTaskNotFound):
-			return nil, status.Error(codes.NotFound, "task not found")
+			return nil, status.Errorf(codes.NotFound, "task id=%d not found", req.Id)
 		default:
 			log.Printf("DeleteTask error: %v", err)
-			return nil, status.Error(codes.Internal, "failed to delete task")
+			return nil, status.Errorf(codes.Internal, "failed to delete task id=%d", req.Id)
 		}
 	}
 
@@ -170,11 +170,11 @@ func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) 
 	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrInvalidTaskID):
-			return nil, status.Error(codes.InvalidArgument, "invalid task id")
+			return nil, status.Errorf(codes.InvalidArgument, "invalid task id= %d", req.Id)
 		case errors.Is(err, apperrors.ErrDateRequired):
 			return nil, status.Error(codes.InvalidArgument, "date is required")
 		case errors.Is(err, apperrors.ErrTaskNotFound):
-			return nil, status.Error(codes.NotFound, "task not found")
+			return nil, status.Errorf(codes.NotFound, "task ad= %d not found", req.Id)
 		default:
 			log.Printf("UpdateDate error: %v", err)
 			return nil, status.Error(codes.Internal, "failed to update date")

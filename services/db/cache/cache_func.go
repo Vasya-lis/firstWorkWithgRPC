@@ -39,23 +39,22 @@ func (s *TasksCache) ClearTaskCache(ctx context.Context) {
 }
 func (s *TasksCache) GetTaskCache(ctx context.Context, id int) (*models.Task, error) {
 
-	key := "task:" + fmt.Sprint(id)
+	key := fmt.Sprintf("task:%d", id)
 
 	val, err := s.redis.Get(ctx, key).Result()
 
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return nil, apperrors.ErrTaskNotFound
+			return nil, fmt.Errorf("%w: task id=%d not found in cache", apperrors.ErrTaskNotFound, id)
 		}
-		return nil, fmt.Errorf("failed to get task from cache: %w", err)
+		return nil, fmt.Errorf("%w: %w: task id=%d, key=%s", apperrors.ErrGetTaskCache, err, id, key)
 	}
 
 	var task models.Task
 
 	if err := json.Unmarshal([]byte(val), &task); err != nil {
 		s.redis.Del(ctx, key)
-		log.Printf("deserialization error: %v", err)
-		return nil, fmt.Errorf("failed to unmarshl task: %w", err)
+		return nil, fmt.Errorf("%w: %w: task id=%d, key=%s", apperrors.ErrGetTaskCache, err, id, key)
 	}
 
 	return &task, nil
@@ -63,14 +62,14 @@ func (s *TasksCache) GetTaskCache(ctx context.Context, id int) (*models.Task, er
 
 func (s *TasksCache) SetTaskCache(ctx context.Context, id int, task *models.Task) error {
 
-	key := "task:" + fmt.Sprint(id)
+	key := fmt.Sprintf("task:%d", id)
 
 	data, err := json.Marshal(task)
 	if err != nil {
-		return fmt.Errorf("failed to marshal task %s: %v", key, err)
+		return fmt.Errorf("%w: %w: task id=%d, key=%s", apperrors.ErrSetTaskCache, err, id, key)
 	}
 	if err := s.redis.Set(ctx, key, data, 0).Err(); err != nil {
-		return fmt.Errorf("failed to set cache for task %s: %w", key, err)
+		return fmt.Errorf("%w: %w: task id=%d, key=%s", apperrors.ErrSetTaskCache, err, id, key)
 	}
 	return nil
 }
@@ -109,7 +108,7 @@ func (s *TasksCache) GetTasksCache(ctx context.Context, limit int, search string
 			}
 			taskTime, err := time.Parse("20060102", task.Date)
 			if err != nil {
-				log.Printf("invalid task date: %v", err)
+				log.Printf("invalid task date: task id=%d: %v", task.ID, err)
 				continue
 			}
 
@@ -125,10 +124,10 @@ func (s *TasksCache) GetTasksCache(ctx context.Context, limit int, search string
 
 	}
 	if err := iter.Err(); err != nil {
-		return nil, fmt.Errorf("redis scan error: %v", err)
+		return nil, fmt.Errorf("%w: %w: limit=%d, search=%s", apperrors.ErrGetTasksCache, err, limit, search)
 	}
 	if len(tasks) == 0 {
-		return nil, apperrors.ErrTaskNotFound
+		return nil, fmt.Errorf("%w: no tasks found with limit=%d, search=%s", apperrors.ErrTaskNotFound, limit, search)
 	}
 	return tasks, nil
 }
@@ -141,12 +140,13 @@ func isDateSearch(s string) bool {
 func (s *TasksCache) SetTasksCache(ctx context.Context, tasks []*models.Task) error {
 
 	for _, task := range tasks {
+		key := fmt.Sprintf("task:%d", task.ID)
 		tasksData, err := json.Marshal(task)
 		if err != nil {
-			return fmt.Errorf("failed to cache task %d: %v", task.ID, err)
+			return fmt.Errorf("%w: %w: task id=%d, key=%s", apperrors.ErrSetTasksCache, err, task.ID, key)
 		}
-		if err := s.redis.Set(ctx, fmt.Sprintf("task:%d", task.ID), tasksData, 0).Err(); err != nil {
-			return fmt.Errorf("failed set task: %w", err)
+		if err := s.redis.Set(ctx, key, tasksData, 0).Err(); err != nil {
+			return fmt.Errorf("%w: %w: task id=%d, key=%s", apperrors.ErrSetTasksCache, err, task.ID, key)
 		}
 
 	}
@@ -155,8 +155,8 @@ func (s *TasksCache) SetTasksCache(ctx context.Context, tasks []*models.Task) er
 
 func (s *TasksCache) DeleteTaskCache(ctx context.Context, id int) {
 
-	key := "task:" + fmt.Sprint(id)
+	key := fmt.Sprintf("task:%d", id)
 	if err := s.redis.Del(ctx, key).Err(); err != nil {
-		log.Printf("failed delete task %d from cache: %v", id, err)
+		log.Printf("%v: task id=%d, key=%s: %v", apperrors.ErrDeleteTaskCache, id, key, err)
 	}
 }

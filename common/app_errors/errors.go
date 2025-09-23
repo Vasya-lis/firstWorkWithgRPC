@@ -2,7 +2,6 @@ package apperrors
 
 import (
 	"errors"
-	"fmt"
 )
 
 // базовые ошибки
@@ -13,26 +12,19 @@ var (
 	ErrTitleRequired     = errors.New("title is required")
 	ErrTaskRequired      = errors.New("task is required")
 	ErrInvalidDateFormat = errors.New("invalid date format")
+
+	// кэш ошибки
+	ErrGetTaskCache    = errors.New("get task cache failed")
+	ErrSetTaskCache    = errors.New("set task cache failed")
+	ErrGetTasksCache   = errors.New("get tasks cache failed")
+	ErrSetTasksCache   = errors.New("set tasks cache failed")
+	ErrDeleteTaskCache = errors.New("delete task cache failed")
+
+	// репо ошибки
+	ErrAddTask        = errors.New("add task failed")
+	ErrGetTasks       = errors.New("get tasks failed")
+	ErrGetTask        = errors.New("get task failed")
+	ErrUpdateTask     = errors.New("update task failed")
+	ErrDeleteTask     = errors.New("delete task failed")
+	ErrUpdateTaskDate = errors.New("update task date failed")
 )
-
-// С обёрткой — если нужно передавать детали
-type ErrorWithDetail struct {
-	Code    error  // базовая ошибка
-	Details string // доп. информация
-}
-
-func (e *ErrorWithDetail) Error() string {
-	return fmt.Sprintf("%v: %s", e.Code, e.Details)
-}
-
-func (e *ErrorWithDetail) Unwrap() error {
-	return e.Code
-}
-
-// Конструктор
-func NewError(code error, details string) error {
-	return &ErrorWithDetail{
-		Code:    code,
-		Details: details,
-	}
-}

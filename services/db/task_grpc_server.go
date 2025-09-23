@@ -31,7 +31,7 @@ func (s *TaskServer) ListTasks(ctx context.Context, req *pb.ListTasksRequest) (*
 	tasks, err := s.ts.GetTasks(ctx, int(req.Limit), req.Search)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrTaskNotFound) {
-			return nil, status.Errorf(codes.NotFound, "tasks wish limit= %d and search= %s not found", req.Limit, req.Search)
+			return nil, status.Errorf(codes.NotFound, "tasks with limit=%d and search= %s not found", req.Limit, req.Search)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get tasks: %v", err)
 	}
@@ -67,7 +67,7 @@ func (s *TaskServer) GetTask(ctx context.Context, req *pb.IDRequest) (*pb.GetTas
 		case errors.Is(err, apperrors.ErrInvalidTaskID):
 			return nil, status.Errorf(codes.InvalidArgument, "invalid task id=%d", req.Id)
 		default:
-			log.Printf("GetTask error: %v", err)
+			log.Printf("%v:%v", apperrors.ErrGetTask, err)
 			return nil, status.Error(codes.Internal, "internal server error")
 		}
 	}
@@ -157,8 +157,8 @@ func (s *TaskServer) DeleteTask(ctx context.Context, req *pb.IDRequest) (*pb.Emp
 func (s *TaskServer) DoneTask(ctx context.Context, req *pb.IDRequest) (*pb.EmptyResponse, error) {
 
 	if err := s.ts.DeleteTask(ctx, int(req.Id)); err != nil {
-		log.Println("error: ", err)
-		return nil, err
+		log.Printf("%v: %v", apperrors.ErrDeleteTask, err)
+		return nil, status.Errorf(codes.Internal, "failed to mark task as done")
 	}
 
 	return &pb.EmptyResponse{}, nil
@@ -176,7 +176,7 @@ func (s *TaskServer) UpdateDate(ctx context.Context, req *pb.UpdateDateRequest) 
 		case errors.Is(err, apperrors.ErrTaskNotFound):
 			return nil, status.Errorf(codes.NotFound, "task ad= %d not found", req.Id)
 		default:
-			log.Printf("UpdateDate error: %v", err)
+			log.Printf("%v: %v", apperrors.ErrUpdateTaskDate, err)
 			return nil, status.Error(codes.Internal, "failed to update date")
 		}
 	}

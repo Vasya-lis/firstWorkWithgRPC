@@ -28,7 +28,7 @@ func (t *TasksRepo) AddTask(task *md.Task) (int, error) {
 	defer t.mu.Unlock()
 
 	if task == nil {
-		return 0, apperrors.NewError(apperrors.ErrTaskNotFound, "task is nil")
+		return 0, fmt.Errorf("%w:task is nil", apperrors.ErrTaskNotFound)
 	}
 
 	if task.Date == "" {
@@ -41,7 +41,7 @@ func (t *TasksRepo) AddTask(task *md.Task) (int, error) {
 
 	result := t.db.Create(task)
 	if result.Error != nil {
-		return 0, fmt.Errorf("failed to insert task: %w", result.Error)
+		return 0, fmt.Errorf("%w:%w", apperrors.ErrAddTask, result.Error)
 	}
 
 	return task.ID, nil
@@ -63,7 +63,7 @@ func (t *TasksRepo) Tasks(limit int, search string) ([]*md.Task, error) {
 	case isDateSearch(search):
 		date, err := parseSearchDate(search)
 		if err != nil {
-			return nil, apperrors.NewError(apperrors.ErrInvalidDateFormat, err.Error())
+			return nil, fmt.Errorf("%w:%w", apperrors.ErrInvalidDateFormat, err)
 		}
 		query = query.Where("date = ?", date)
 	default:
@@ -76,7 +76,7 @@ func (t *TasksRepo) Tasks(limit int, search string) ([]*md.Task, error) {
 	}
 
 	if err := query.Order("date ASC").Find(&tasks).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch tasks: %v", err.Error())
+		return nil, fmt.Errorf("%w:%w", apperrors.ErrGetTasks, err)
 	}
 
 	if tasks == nil {
@@ -110,11 +110,11 @@ func (t *TasksRepo) GetTask(id int) (*md.Task, error) {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, apperrors.ErrTaskNotFound
 		}
-		return nil, fmt.Errorf("database error: %w", result.Error)
+		return nil, fmt.Errorf("%w:%w", apperrors.ErrGetTask, result.Error)
 	}
 	return &task, nil
 }
-func (t *TasksRepo) UpdateTask(task *md.Task) error {
+func (t *TasksRepo) Updates(task *md.Task) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -124,7 +124,7 @@ func (t *TasksRepo) UpdateTask(task *md.Task) error {
 
 	result := t.db.Save(task)
 	if result.Error != nil {
-		return fmt.Errorf("failed to update task: %w", result.Error)
+		return fmt.Errorf("%w:%w", apperrors.ErrUpdateTask, result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -144,7 +144,7 @@ func (t *TasksRepo) DeleteTask(id int) error {
 
 	result := t.db.Delete(&md.Task{}, id)
 	if result.Error != nil {
-		return fmt.Errorf("failed to delete task: %w", result.Error)
+		return fmt.Errorf("%w:%w", apperrors.ErrDeleteTask, result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -167,7 +167,7 @@ func (t *TasksRepo) UpdateDate(next string, id int) error {
 
 	result := t.db.Model(&md.Task{}).Where("id = ?", id).Update("date", next)
 	if result.Error != nil {
-		return fmt.Errorf("failed to update date: %w", result.Error)
+		return fmt.Errorf("%w:%w", apperrors.ErrUpdateTaskDate, result.Error)
 	}
 
 	if result.RowsAffected == 0 {

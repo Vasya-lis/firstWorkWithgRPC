@@ -2,24 +2,29 @@ package common
 
 import (
 	"fmt"
+	"log"
 
+	cfg "github.com/Vasya-lis/firstWorkWithgRPC/config"
+	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var db *gorm.DB
 
-type Task struct {
-	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Date    string `gorm:"size:8;not null;default:''" json:"date"`
-	Title   string `gorm:"size:255;not null;default:''" json:"title"`
-	Comment string `gorm:"not null;default:''" json:"comment"`
-	Repeat  string `gorm:"size:128;not null;default:''" json:"repeat"`
-}
-
 // Init открывает базу данных и при необходимости создает таблицу и индекс
-func InitDB(dsn string) error {
+func InitDB() error {
 	var err error
+
+	config, err := cfg.NewConfig()
+	if err != nil {
+		log.Printf("configuration error: %v", err)
+		return fmt.Errorf("configuration failed: %w", err)
+	}
+
+	// строка подключения
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort, config.DBSSLMode)
 
 	// открываю postgres через GORM
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -28,7 +33,7 @@ func InitDB(dsn string) error {
 	}
 
 	// создаю таблицу и индекс, если их нет
-	if err := db.AutoMigrate(&Task{}); err != nil {
+	if err := db.AutoMigrate(&md.Task{}); err != nil {
 		return fmt.Errorf("failed to migrate schema: %w", err)
 	}
 	return nil

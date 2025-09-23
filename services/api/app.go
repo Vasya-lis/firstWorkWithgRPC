@@ -21,7 +21,6 @@ type AppAPI struct {
 func NewAppApi() (*AppAPI, error) {
 	config, err := cfg.NewConfig()
 	if err != nil {
-		log.Printf("configuration error: %v", err)
 		return nil, fmt.Errorf("configuration failed: %w", err)
 	}
 

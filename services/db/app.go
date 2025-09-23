@@ -31,12 +31,8 @@ func NewAppDB() (*AppDB, error) {
 		return nil, fmt.Errorf("configuration failed: %w", err)
 	}
 
-	// строка подключения
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort, config.DBSSLMode)
-
 	// инициализация базы
-	if err := cmDB.InitDB(dsn); err != nil {
+	if err := cmDB.InitDB(); err != nil {
 		log.Printf("DB init failed: %v", err)
 		return nil, fmt.Errorf("DB init failed: %w", err)
 	}

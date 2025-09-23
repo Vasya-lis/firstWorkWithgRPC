@@ -11,39 +11,6 @@ import (
 	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
-type TasksResponse struct {
-	Tasks []*md.Task `json:"tasks"`
-}
-
-// Обработчик для /api/task
-func (app *AppAPI) taskHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		app.AddTaskHandler(w, r)
-	case http.MethodGet:
-		app.GetTaskHandler(w, r)
-	case http.MethodPut:
-		app.UpdateTaskHandler(w, r)
-	case http.MethodDelete:
-		app.DeleteTaskHandler(w, r)
-	default:
-		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{
-			"error": "Method not allowed",
-		})
-	}
-}
-
-func (app *AppAPI) init() {
-	http.HandleFunc("/api/nextdate", func(w http.ResponseWriter, r *http.Request) { app.nextDateHandler(w, r) })
-	http.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) { app.taskHandler(w, r) })
-	http.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) { app.tasksHandler(w, r) })
-	http.HandleFunc("/api/task/done", func(w http.ResponseWriter, r *http.Request) { app.doneTaskHandler(w, r) })
-
-	http.Handle("/", http.FileServer(http.Dir("./web")))
-
-}
-
-// в каком случае делать экспортируемую в каком приветтную?
 func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task md.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
@@ -79,45 +46,6 @@ func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJson(w, http.StatusOK, map[string]int{"id": int(resp.Id)})
-}
-
-func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
-		return
-	}
-
-	search := r.URL.Query().Get("search")
-	limit := 50
-
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	resp, err := client.ListTasks(app.context, &pb.ListTasksRequest{
-		Limit:  int32(limit),
-		Search: search,
-	})
-	if err != nil {
-		log.Println("error: ", err)
-		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch tasks"})
-		return
-	}
-
-	var tasks []*md.Task
-	for _, protoTask := range resp.Tasks {
-		tasks = append(tasks, &md.Task{
-			ID:      int(protoTask.Id),
-			Date:    protoTask.Date,
-			Title:   protoTask.Title,
-			Comment: protoTask.Comment,
-			Repeat:  protoTask.Repeat,
-		})
-	}
-
-	if tasks == nil {
-		tasks = []*md.Task{}
-	}
-
-	WriteJson(w, http.StatusOK, TasksResponse{Tasks: tasks})
 }
 
 // GetTaskHandler обработчик GET /api/task
@@ -297,4 +225,43 @@ func (app *AppAPI) nextDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(resp.NextDate))
+}
+
+func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		return
+	}
+
+	search := r.URL.Query().Get("search")
+	limit := 50
+
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.ListTasks(app.context, &pb.ListTasksRequest{
+		Limit:  int32(limit),
+		Search: search,
+	})
+	if err != nil {
+		log.Println("error: ", err)
+		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch tasks"})
+		return
+	}
+
+	var tasks []*md.Task
+	for _, protoTask := range resp.Tasks {
+		tasks = append(tasks, &md.Task{
+			ID:      int(protoTask.Id),
+			Date:    protoTask.Date,
+			Title:   protoTask.Title,
+			Comment: protoTask.Comment,
+			Repeat:  protoTask.Repeat,
+		})
+	}
+
+	if tasks == nil {
+		tasks = []*md.Task{}
+	}
+
+	WriteJson(w, http.StatusOK, TasksResponse{Tasks: tasks})
 }

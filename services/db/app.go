@@ -80,7 +80,9 @@ func (app *AppDB) Start() {
 	}
 }
 func (app *AppDB) Stop() {
+	// остановка сервера grpc
 	app.server.GracefulStop()
+	// остановка редиса
 	client := cmR.GetRedis()
 	if client != nil {
 		err := client.Close()
@@ -88,6 +90,7 @@ func (app *AppDB) Stop() {
 			log.Printf("failed to close redis: %v", err)
 		}
 	}
+	// закрытие бд
 	db := cmDB.GetDB()
 	sqlDB, err := db.DB()
 	if err != nil {

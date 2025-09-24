@@ -12,10 +12,11 @@ import (
 )
 
 type AppAPI struct {
-	conf    *cfg.Config      // env
-	conn    *grpc.ClientConn // для соединения с db
-	server  *http.Server     // вебсервер
-	context context.Context
+	conf        *cfg.Config      // env
+	conn        *grpc.ClientConn // для соединения с db
+	server      *http.Server     // вебсервер
+	context     context.Context
+	taskService *TaskService
 }
 
 func NewAppApi() (*AppAPI, error) {
@@ -36,10 +37,11 @@ func NewAppApi() (*AppAPI, error) {
 	}
 
 	app := &AppAPI{
-		conf:    config,
-		conn:    conn,
-		server:  server,
-		context: context.Background(),
+		conf:        config,
+		conn:        conn,
+		server:      server,
+		context:     context.Background(),
+		taskService: NewTaskService(conn),
 	}
 
 	app.init()

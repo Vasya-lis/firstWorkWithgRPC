@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
+	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
-func CheckDate(task *Task) error {
+func CheckDate(task *md.Task) error {
 	now := time.Now()
 	// если пустая дата — ставим сегодня
 	if task.Date == "" {
@@ -48,14 +49,14 @@ func CheckDate(task *Task) error {
 	return nil
 }
 
-func (t *Task) ValidateAdd() error {
+func validateAdd(t *md.Task) error {
 	if t.Title == "" {
 		return fmt.Errorf("не указан заголовок задачи")
 	}
 	return nil
 }
 
-func (t *Task) Validate() error {
+func validate(t *md.Task) error {
 	if t.ID == 0 {
 		return fmt.Errorf("не указан идентификатор задачи")
 	}

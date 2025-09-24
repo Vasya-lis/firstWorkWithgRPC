@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -6,32 +6,20 @@ import (
 	"net/http"
 	"time"
 
-	cm "github.com/Vasya-lis/firstWorkWithgRPC/cmd/common"
+	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
+	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
-type Task struct {
-	ID      int    `db:"id" json:"id"`
-	Date    string `db:"date" json:"date"`
-	Title   string `db:"title" json:"title"`
-	Comment string `db:"comment" json:"comment"`
-	Repeat  string `db:"repeat" json:"repeat"`
-}
-
-// Структура для ответа с задачами
-type TasksResp struct {
-	Tasks []*Task `json:"tasks"`
-}
-
-func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task Task
+func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
+	var task md.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
 
-	errResp := task.ValidateAdd()
+	errResp := validateAdd(&task)
 	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
 		return
@@ -43,9 +31,9 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
+	client := pb.NewSchedulerServiceClient(app.conn)
 
-	resp, err := client.AddTask(ctx, &pb.Task{
+	resp, err := client.AddTask(app.context, &pb.Task{
 		Title:   task.Title,
 		Date:    task.Date,
 		Comment: task.Comment,
@@ -60,47 +48,8 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]int{"id": int(resp.Id)})
 }
 
-func tasksHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
-		return
-	}
-
-	search := r.URL.Query().Get("search")
-	limit := 50
-
-	client := pb.NewSchedulerServiceClient(conn)
-
-	resp, err := client.ListTasks(ctx, &pb.ListTasksRequest{
-		Limit:  int32(limit),
-		Search: search,
-	})
-	if err != nil {
-		log.Println("error: ", err)
-		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch tasks"})
-		return
-	}
-
-	var tasks []*Task
-	for _, protoTask := range resp.Tasks {
-		tasks = append(tasks, &Task{
-			ID:      int(protoTask.Id),
-			Date:    protoTask.Date,
-			Title:   protoTask.Title,
-			Comment: protoTask.Comment,
-			Repeat:  protoTask.Repeat,
-		})
-	}
-
-	if tasks == nil {
-		tasks = []*Task{}
-	}
-
-	WriteJson(w, http.StatusOK, TasksResp{Tasks: tasks})
-}
-
 // GetTaskHandler обработчик GET /api/task
-func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
@@ -108,9 +57,9 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
+	client := pb.NewSchedulerServiceClient(app.conn)
 
-	task, err := client.GetTask(ctx, &pb.IDRequest{
+	task, err := client.GetTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -118,7 +67,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		WriteJson(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
-	WriteJson(w, http.StatusOK, &Task{
+	WriteJson(w, http.StatusOK, &md.Task{
 		ID:      int(task.Task.Id),
 		Date:    task.Task.Date,
 		Title:   task.Task.Title,
@@ -128,15 +77,15 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateTaskHandler обработчик PUT /api/task
-func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task Task
+func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
+	var task md.Task
 	err := json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "ошибка десериализации JSON"})
 		return
 	}
 
-	errResp := task.Validate()
+	errResp := validate(&task)
 	if errResp != nil {
 		WriteJson(w, http.StatusBadRequest, errResp)
 		return
@@ -148,9 +97,9 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
+	client := pb.NewSchedulerServiceClient(app.conn)
 
-	_, err = client.UpdateTask(ctx, &pb.UpdateTaskRequest{
+	_, err = client.UpdateTask(app.context, &pb.UpdateTaskRequest{
 		Task: &pb.Task{
 			Id:      int32(task.ID),
 			Title:   task.Title,
@@ -168,15 +117,16 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	client := pb.NewSchedulerServiceClient(conn)
 
-	_, err = client.DeleteTask(ctx, &pb.IDRequest{
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	_, err = client.DeleteTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -188,7 +138,7 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (app *AppAPI) doneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
@@ -196,9 +146,9 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(conn)
+	client := pb.NewSchedulerServiceClient(app.conn)
 
-	task, err := client.GetTask(ctx, &pb.IDRequest{
+	task, err := client.GetTask(app.context, &pb.IDRequest{
 		Id: int32(id),
 	})
 	if err != nil {
@@ -209,7 +159,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if task.Task.Repeat == "" {
 		// Одноразовая задача — удаляем
-		_, err := client.DeleteTask(ctx, &pb.IDRequest{
+		_, err := client.DeleteTask(app.context, &pb.IDRequest{
 			Id: int32(id),
 		})
 		if err != nil {
@@ -228,7 +178,7 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = client.UpdateDate(ctx, &pb.UpdateDateRequest{
+	_, err = client.UpdateDate(app.context, &pb.UpdateDateRequest{
 		Id:       int32(id),
 		NextDate: nextDate,
 	})
@@ -239,4 +189,79 @@ func DoneTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
+}
+
+func (app *AppAPI) nextDateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		return
+	}
+
+	nowStr := r.URL.Query().Get("now")
+	dateStr := r.URL.Query().Get("date")
+	repeat := r.URL.Query().Get("repeat")
+
+	if dateStr == "" || repeat == "" {
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "date and repeat parameters are required"})
+		return
+	}
+
+	now := time.Now().Format(cm.FormDate)
+	if nowStr != "" {
+		now = nowStr
+	}
+
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.NextDate(app.context, &pb.NextDateRequest{
+		CurrentDate: now,
+		TaskDate:    dateStr,
+		RepeatRule:  repeat,
+	})
+	if err != nil {
+		log.Println(err)
+		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to calculate next date"})
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write([]byte(resp.NextDate))
+}
+
+func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		return
+	}
+
+	search := r.URL.Query().Get("search")
+	limit := 50
+
+	client := pb.NewSchedulerServiceClient(app.conn)
+
+	resp, err := client.ListTasks(app.context, &pb.ListTasksRequest{
+		Limit:  int32(limit),
+		Search: search,
+	})
+	if err != nil {
+		log.Println("error: ", err)
+		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch tasks"})
+		return
+	}
+
+	var tasks []*md.Task
+	for _, protoTask := range resp.Tasks {
+		tasks = append(tasks, &md.Task{
+			ID:      int(protoTask.Id),
+			Date:    protoTask.Date,
+			Title:   protoTask.Title,
+			Comment: protoTask.Comment,
+			Repeat:  protoTask.Repeat,
+		})
+	}
+
+	if tasks == nil {
+		tasks = []*md.Task{}
+	}
+
+	WriteJson(w, http.StatusOK, TasksResponse{Tasks: tasks})
 }

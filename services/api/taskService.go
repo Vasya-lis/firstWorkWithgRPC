@@ -7,16 +7,15 @@ import (
 	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
 	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
-	"google.golang.org/grpc"
 )
 
 type TaskService struct {
-	client pb.SchedulerServiceClient
+	client *SchedulerClient
 }
 
-func NewTaskService(conn *grpc.ClientConn) *TaskService {
+func NewTaskService(client *SchedulerClient) *TaskService {
 	return &TaskService{
-		client: pb.NewSchedulerServiceClient(conn)}
+		client: client}
 }
 
 func (s *TaskService) AddTask(ctx context.Context, task *md.Task) (int, error) {

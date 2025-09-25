@@ -14,9 +14,9 @@ import (
 type AppAPI struct {
 	conf        *cfg.Config      // env
 	conn        *grpc.ClientConn // для соединения с db
-	server      *http.Server     // вебсервер
+	server      *http.Server     // сервер для api
 	context     context.Context
-	taskService *TaskService
+	taskService *TaskService // сервис работы с tasks
 }
 
 func NewAppApi() (*AppAPI, error) {
@@ -32,6 +32,12 @@ func NewAppApi() (*AppAPI, error) {
 		return nil, fmt.Errorf("failed to connect to gRPC server: %w", err)
 	}
 
+	schedulerClient := NewSchedulerClient(conn)
+	taskService := NewTaskService(schedulerClient)
+
+	taskServer := NewTaskServer(taskService)
+	taskServer.init()
+
 	server := &http.Server{
 		Addr: ":" + config.TodoPort,
 	}
@@ -41,10 +47,8 @@ func NewAppApi() (*AppAPI, error) {
 		conn:        conn,
 		server:      server,
 		context:     context.Background(),
-		taskService: NewTaskService(conn),
+		taskService: taskService,
 	}
-
-	app.init()
 
 	return app, nil
 

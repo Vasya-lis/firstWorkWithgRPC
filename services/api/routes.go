@@ -2,11 +2,11 @@ package api
 
 import "net/http"
 
-func (app *AppAPI) init() {
-	http.HandleFunc("/api/nextdate", app.nextDateHandler)
-	http.HandleFunc("/api/task", app.taskHandler)
-	http.HandleFunc("/api/tasks", app.tasksHandler)
-	http.HandleFunc("/api/task/done", app.doneTaskHandler)
+func (s *TaskServer) init() {
+	http.HandleFunc("/api/nextdate", s.nextDateHandler)
+	http.HandleFunc("/api/task", s.taskHandler)
+	http.HandleFunc("/api/tasks", s.tasksHandler)
+	http.HandleFunc("/api/task/done", s.doneTaskHandler)
 	http.Handle("/", http.FileServer(http.Dir("./web")))
 
 }

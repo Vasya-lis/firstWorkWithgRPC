@@ -7,11 +7,37 @@ import (
 	"time"
 
 	cm "github.com/Vasya-lis/firstWorkWithgRPC/common"
-	pb "github.com/Vasya-lis/firstWorkWithgRPC/proto"
 	md "github.com/Vasya-lis/firstWorkWithgRPC/services/models"
 )
 
-func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
+type TaskServer struct {
+	service *TaskService
+}
+
+func NewTaskServer(service *TaskService) *TaskServer {
+	return &TaskServer{
+		service: service,
+	}
+}
+
+func (s *TaskServer) taskHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		s.AddTaskHandler(w, r)
+	case http.MethodGet:
+		s.GetTaskHandler(w, r)
+	case http.MethodPut:
+		s.UpdateTaskHandler(w, r)
+	case http.MethodDelete:
+		s.DeleteTaskHandler(w, r)
+	default:
+		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "Method not allowed",
+		})
+	}
+}
+
+func (s *TaskServer) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task md.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		log.Println("error: ", err)
@@ -31,57 +57,39 @@ func (app *AppAPI) AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	resp, err := client.AddTask(app.context, &pb.Task{
-		Title:   task.Title,
-		Date:    task.Date,
-		Comment: task.Comment,
-		Repeat:  task.Repeat,
-	})
+	id, err := s.service.AddTask(r.Context(), &task)
 	if err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "Failed to add task"})
 
 		return
 	}
-	WriteJson(w, http.StatusOK, map[string]int{"id": int(resp.Id)})
+	WriteJson(w, http.StatusOK, map[string]int{"id": id})
 }
 
 // GetTaskHandler обработчик GET /api/task
-func (app *AppAPI) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (s *TaskServer) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	task, err := client.GetTask(app.context, &pb.IDRequest{
-		Id: int32(id),
-	})
+	task, err := s.service.GetTask(r.Context(), id)
 	if err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
-	WriteJson(w, http.StatusOK, &md.Task{
-		ID:      int(task.Task.Id),
-		Date:    task.Task.Date,
-		Title:   task.Task.Title,
-		Comment: task.Task.Comment,
-		Repeat:  task.Task.Repeat,
-	})
+	WriteJson(w, http.StatusOK, task)
 }
 
 // UpdateTaskHandler обработчик PUT /api/task
-func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (s *TaskServer) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task md.Task
 	err := json.NewDecoder(r.Body).Decode(&task)
 	if err != nil {
-		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "ошибка десериализации JSON"})
+		WriteJson(w, http.StatusBadRequest, map[string]string{"error": "deserialization error JSON"})
 		return
 	}
 
@@ -97,17 +105,7 @@ func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	_, err = client.UpdateTask(app.context, &pb.UpdateTaskRequest{
-		Task: &pb.Task{
-			Id:      int32(task.ID),
-			Title:   task.Title,
-			Date:    task.Date,
-			Comment: task.Comment,
-			Repeat:  task.Repeat,
-		},
-	})
+	err = s.service.UpdateTask(r.Context(), &task)
 	if err != nil {
 		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -117,18 +115,14 @@ func (app *AppAPI) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func (app *AppAPI) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (s *TaskServer) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	_, err = client.DeleteTask(app.context, &pb.IDRequest{
-		Id: int32(id),
-	})
+	err = s.service.DeleteTask(r.Context(), id)
 	if err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -138,7 +132,7 @@ func (app *AppAPI) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func (app *AppAPI) doneTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (s *TaskServer) doneTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := GetIDFromQuery(w, r)
 	if err != nil {
@@ -146,52 +140,17 @@ func (app *AppAPI) doneTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	task, err := client.GetTask(app.context, &pb.IDRequest{
-		Id: int32(id),
-	})
+	err = s.service.DoneTask(r.Context(), id)
 	if err != nil {
 		log.Println("error: ", err)
 		WriteJson(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
 
-	if task.Task.Repeat == "" {
-		// Одноразовая задача — удаляем
-		_, err := client.DeleteTask(app.context, &pb.IDRequest{
-			Id: int32(id),
-		})
-		if err != nil {
-			log.Println("error: ", err)
-			WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-			return
-		}
-		WriteJson(w, http.StatusOK, map[string]interface{}{})
-		return
-	}
-
-	// Периодическая задача — вычисляем следующую дату
-	nextDate, err := cm.NextDate(time.Now(), task.Task.Date, task.Task.Repeat)
-	if err != nil {
-		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
-	}
-
-	_, err = client.UpdateDate(app.context, &pb.UpdateDateRequest{
-		Id:       int32(id),
-		NextDate: nextDate,
-	})
-	if err != nil {
-		log.Println("error: ", err)
-		WriteJson(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
-	}
-
 	WriteJson(w, http.StatusOK, map[string]interface{}{})
 }
 
-func (app *AppAPI) nextDateHandler(w http.ResponseWriter, r *http.Request) {
+func (s *TaskServer) nextDateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
@@ -211,23 +170,17 @@ func (app *AppAPI) nextDateHandler(w http.ResponseWriter, r *http.Request) {
 		now = nowStr
 	}
 
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	resp, err := client.NextDate(app.context, &pb.NextDateRequest{
-		CurrentDate: now,
-		TaskDate:    dateStr,
-		RepeatRule:  repeat,
-	})
+	nextDate, err := s.service.NextDateCalc(r.Context(), now, dateStr, repeat)
 	if err != nil {
 		log.Println(err)
 		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to calculate next date"})
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte(resp.NextDate))
+	w.Write([]byte(nextDate))
 }
 
-func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
+func (s *TaskServer) tasksHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		WriteJson(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
@@ -236,27 +189,11 @@ func (app *AppAPI) tasksHandler(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	limit := 50
 
-	client := pb.NewSchedulerServiceClient(app.conn)
-
-	resp, err := client.ListTasks(app.context, &pb.ListTasksRequest{
-		Limit:  int32(limit),
-		Search: search,
-	})
+	tasks, err := s.service.ListTasks(r.Context(), limit, search)
 	if err != nil {
-		log.Println("error: ", err)
+		log.Println("error:", err)
 		WriteJson(w, http.StatusInternalServerError, map[string]string{"error": "failed to fetch tasks"})
 		return
-	}
-
-	var tasks []*md.Task
-	for _, protoTask := range resp.Tasks {
-		tasks = append(tasks, &md.Task{
-			ID:      int(protoTask.Id),
-			Date:    protoTask.Date,
-			Title:   protoTask.Title,
-			Comment: protoTask.Comment,
-			Repeat:  protoTask.Repeat,
-		})
 	}
 
 	if tasks == nil {

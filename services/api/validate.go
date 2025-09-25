@@ -51,17 +51,17 @@ func CheckDate(task *md.Task) error {
 
 func validateAdd(t *md.Task) error {
 	if t.Title == "" {
-		return fmt.Errorf("не указан заголовок задачи")
+		return fmt.Errorf("the issue title is not specified")
 	}
 	return nil
 }
 
 func validate(t *md.Task) error {
 	if t.ID == 0 {
-		return fmt.Errorf("не указан идентификатор задачи")
+		return fmt.Errorf("the issue ID is not specified")
 	}
 	if t.Title == "" {
-		return fmt.Errorf("не указан заголовок задачи")
+		return fmt.Errorf("the issue title is not specified")
 	}
 	return nil
 }
@@ -74,7 +74,7 @@ func GetIDFromQuery(w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 	idInt, err := strconv.Atoi(idStr)
 	if err != nil {
-		return 0, fmt.Errorf("ошибка конвертации: %w", err)
+		return 0, fmt.Errorf("conversion error: %w", err)
 	}
 	return idInt, nil
 }

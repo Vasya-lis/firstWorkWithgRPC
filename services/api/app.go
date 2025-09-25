@@ -12,11 +12,11 @@ import (
 )
 
 type AppAPI struct {
-	conf        *cfg.Config      // env
-	conn        *grpc.ClientConn // для соединения с db
-	server      *http.Server     // сервер для api
-	context     context.Context
-	taskService *TaskService // сервис работы с tasks
+	conf       *cfg.Config      // env
+	conn       *grpc.ClientConn // для соединения с db
+	server     *http.Server     // сервер для api
+	context    context.Context
+	taskServer *TaskServer //
 }
 
 func NewAppApi() (*AppAPI, error) {
@@ -43,11 +43,11 @@ func NewAppApi() (*AppAPI, error) {
 	}
 
 	app := &AppAPI{
-		conf:        config,
-		conn:        conn,
-		server:      server,
-		context:     context.Background(),
-		taskService: taskService,
+		conf:       config,
+		conn:       conn,
+		server:     server,
+		context:    context.Background(),
+		taskServer: taskServer,
 	}
 
 	return app, nil
